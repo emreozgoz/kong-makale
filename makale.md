@@ -307,7 +307,7 @@ docker run --rm --network kong-test_default curlimages/curl \
 ```
 
 ```json
-{"totalProducts":4,"outOfStock":1,"inventoryValue":126860.00,"secret":"bu-veri-disariya-cikmamali"}
+{"totalProducts":4,"outOfStock":1,"inventoryValue":108568.50,"secret":"bu-veri-disariya-cikmamali"}
 ```
 
 ![Aynı veri iç ağdan görünüyor: /internal/stats](images/07-ic-agdan-stats.png)
