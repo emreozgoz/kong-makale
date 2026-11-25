@@ -1,6 +1,6 @@
 # kong-makale
 
-Kong Gateway OSS + .NET 9 ile "tek kapı" denemesi. Host'a hiç port açmayan iki minimal
+Kong Gateway OSS + .NET 9 denemesi. Host'a hiç port açmayan iki minimal
 API'nin yalnızca bir endpoint'i Kong üzerinden dışarıya açılıyor; engellenen isteklerin
 .NET servisine hiç ulaşmadığı üç ayrı yöntemle gözlemleniyor.
 
@@ -15,7 +15,7 @@ docker compose up -d
 # Açık olan tek endpoint
 curl -s localhost:8000/api/products | jq
 
-# Kapıda çevrilenler (istek .NET servisine hiç gitmez)
+# Gateway'in engelledikleri (istek .NET servisine hiç gitmez)
 curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/api/internal/stats   # 404
 curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/api/products/3       # 404
 
@@ -51,5 +51,5 @@ docker run --rm --network kong-test_default -v $PWD:/work -w /work kong/deck:lat
 | `localhost:8002` | Kong Manager |
 | `localhost:5433` | Postgres (DBeaver vb. için) |
 
-> Uyarı: Bu kurulum lokal deneme içindir. Admin API (8001) kimlik doğrulamasız ve dışa
-> açık, `kong.yaml` içindeki API anahtarı düz metin. Gerçek ortamda ikisi de böyle olmaz.
+> Uyarı: Bu kurulum lokal deneme içindir. Admin API (8001) authentication'sız ve dışa
+> açık, `kong.yaml` içindeki API key düz metin. Gerçek ortamda ikisi de böyle olmaz.

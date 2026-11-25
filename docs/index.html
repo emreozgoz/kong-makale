@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="author" content="Emre ÖZGÖZ">
-<meta name="description" content="Kong Gateway OSS ve .NET 9 ile tek kapı: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
+<meta name="description" content="Kong Gateway OSS ve .NET 9 ile tek giriş: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
 <meta property="og:type" content="article">
 <meta property="og:title" content="İstek Servise Hiç Ulaşmadı">
-<meta property="og:description" content="Kong Gateway OSS ve .NET 9 ile tek kapı: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
+<meta property="og:description" content="Kong Gateway OSS ve .NET 9 ile tek giriş: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
 <style>:root{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>İstek Servise Hiç Ulaşmadı</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
@@ -333,7 +333,7 @@ footer h2{font-size:var(--step-2)}
       <span>Kong Gateway OSS 3.9</span><span>.NET 9</span><span>Docker Compose</span><span>decK</span>
     </div>
     <h1>İstek Servise Hiç Ulaşmadı
-      <span class="sub">Kong Gateway ile .NET Mikroservislerine Tek Kapı Açmak</span>
+      <span class="sub">Kong Gateway ile .NET Mikroservislerinde Tek Endpoint'i Dışarıya Açmak</span>
     </h1>
     <p class="deck">Dışarı açmadığımız bir endpoint'e gelen istek, .NET servisine <em>hiç ulaşmaz</em>. “Ulaşmaz” lafta kalmasın diye bunu üç ayrı yerden gözlemleyeceğiz.</p>
     <div class="byline">
@@ -343,9 +343,9 @@ footer h2{font-size:var(--step-2)}
     </div>
   </header>
 
-  <div class="gate" aria-label="Doğrulanmış kapı kaydı">
+  <div class="gate" aria-label="Doğrulanmış gateway kaydı">
     <div class="gate-head">
-      <b>Kapı kaydı — doğrulanmış davranış</b>
+      <b>Gateway kaydı — doğrulanmış davranış</b>
       <span>products-api · route: public-products</span>
     </div>
     <div class="gate-rows">
@@ -367,7 +367,7 @@ footer h2{font-size:var(--step-2)}
       <li><a href="#b4"><span class="n">04</span>İlk Denemeler</a></li>
       <li><a href="#b5"><span class="n">05</span>Portu Olmayan İki .NET Servisi</a></li>
       <li><a href="#b6"><span class="n">06</span>Tek Endpoint'i Dışa Açmak</a></li>
-      <li><a href="#b7"><span class="n">07</span>“Kapıda Çevirdi”yi Kanıtlamak</a></li>
+      <li><a href="#b7"><span class="n">07</span>“İstek Servise Ulaşmadı”yı Kanıtlamak</a></li>
       <li><a href="#b8"><span class="n">08</span>Konfigürasyon Nerede Yaşıyor?</a></li>
       <li><a href="#b9"><span class="n">09</span>Postgres'e Bakmak</a></li>
       <li><a href="#b10"><span class="n">10</span>decK ile Declarative Config</a></li>
@@ -400,16 +400,16 @@ footer h2{font-size:var(--step-2)}
     <article>
       <section id="b1">
         <h2><span class="n">01</span><span>Giriş: Neden API Gateway?</span></h2>
-        <p>Mikroservis mimarisine geçen ekiplerin büyük bölümü şu noktada tıkanır: servis sayısı arttı, peki dışarıya hangi kapıdan çıkıyorlar?</p>
+        <p>Mikroservis mimarisine geçen ekiplerin büyük bölümü şu noktada tıkanır: servis sayısı arttı, peki dışarıya nereden çıkıyorlar?</p>
         <p>İlk refleks genelde her servisi kendi portundan dışarı açmak olur. Kısa vadede çalışır, ama her yeni servis şu listeyi baştan yazmanızı ister:</p>
         <ul>
-          <li><strong>Kimlik doğrulama</strong> her servise tek tek yazılır; biri unutur, o servis açıkta kalır.</li>
+          <li><strong>Authentication</strong> her servise tek tek yazılır; biri unutur, o servis açıkta kalır.</li>
           <li><strong>Rate limiting</strong> yoktur veya her serviste farklı şekilde vardır.</li>
           <li><strong>CORS</strong> ayarları servis başına kopyalanır, biri eski kalır.</li>
           <li><strong>Hangi endpoint'in dışarı açık olduğu</strong> kod içine gömülüdür; görmek için kodu okumak gerekir.</li>
           <li>Bir endpoint'i kapatmak <strong>deploy</strong> gerektirir.</li>
         </ul>
-        <p>API Gateway bu ortak işleri tek bir yere taşır. Client ile backend servislerinizin arasına girer, her istek ondan geçer; yönlendirme, kimlik doğrulama, kota, dönüştürme ve gözlemlenebilirlik kapıda hallolur. Backend servisiniz bunların hiçbirinden haberdar olmaz — ve asıl kazanç da budur.</p>
+        <p>API Gateway bu ortak işleri tek bir yere taşır. Client ile backend servislerinizin arasına girer, her istek ondan geçer; routing, authentication, quota, transformation ve observability gateway'de hallolur. Backend servisiniz bunların hiçbirinden haberdar olmaz — ve asıl kazanç da budur.</p>
         <p>Bu yazıda gateway olarak <strong>Kong Gateway OSS</strong>, arka taraftaki servisler için <strong>.NET 9</strong> kullanacağız. Hedefimiz tek bir cümleyi uçtan uca kanıtlamak:</p>
         <p class="pull">Dışarı açmadığımız bir endpoint'e gelen istek, .NET servisine hiç ulaşmaz.</p>
         <p>“Ulaşmaz” lafta kalmasın diye bunu üç ayrı yerden gözlemleyeceğiz.</p>
@@ -426,8 +426,8 @@ footer h2{font-size:var(--step-2)}
               <tr><td><strong>Service</strong></td><td>Arka taraftaki gerçek servis (upstream). Örnek: <code>http://products-api:8080</code></td></tr>
               <tr><td><strong>Route</strong></td><td>Gelen istek hangi kurala uyarsa o Service'e gider. Örnek: path <code>/api/products</code></td></tr>
               <tr><td><strong>Plugin</strong></td><td>İstek/yanıt üzerinde çalışan davranış. Global, Service, Route veya Consumer bazlı</td></tr>
-              <tr><td><strong>Consumer</strong></td><td>API'yi tüketen taraf (kullanıcı/uygulama). Anahtarlar ve kotalar buna bağlanır</td></tr>
-              <tr><td><strong>Upstream</strong></td><td>Birden fazla hedefi (target) olan, yük dengelenmiş havuz</td></tr>
+              <tr><td><strong>Consumer</strong></td><td>API'yi tüketen taraf (kullanıcı/uygulama). Key'ler ve quota'lar buna bağlanır</td></tr>
+              <tr><td><strong>Upstream</strong></td><td>Birden fazla target içeren load balancing havuzu</td></tr>
             </tbody>
           </table>
         </div>
@@ -438,7 +438,7 @@ footer h2{font-size:var(--step-2)}
 
       <section id="b3">
         <h2><span class="n">03</span><span>Ortamı Kurmak: Docker ile Kong Gateway OSS</span></h2>
-        <p>Kong'u yerelde çalıştırmanın en pratik yolu Docker Compose. Kurulumumuz dört parçadan oluşuyor: Postgres (konfigürasyonun yaşadığı yer), bir kerelik migration container'ı, Kong'un kendisi ve test için bir sahte backend.</p>
+        <p>Kong'u yerelde çalıştırmanın en pratik yolu Docker Compose. Kurulumumuz dört parçadan oluşuyor: Postgres (konfigürasyonun yaşadığı yer), bir kerelik migration container'ı, Kong'un kendisi ve test için bir mock backend.</p>
         <div class="codeblock" data-lang="docker-compose.yml"><pre><code>services:
   kong-db:
     image: postgres:16-alpine
@@ -497,7 +497,7 @@ footer h2{font-size:var(--step-2)}
         </div>
         <div class="note">
           <span class="lbl">Dikkat edilecek nokta</span>
-          <p><code>kong-migrations</code> container'ı <code>service_completed_successfully</code> koşuluyla bekleniyor. Yani Kong, şema kurulmadan ayağa kalkmaya çalışmıyor — ilk <code>up</code> komutunda yarış durumu yaşamamanızın sebebi bu.</p>
+          <p><code>kong-migrations</code> container'ı <code>service_completed_successfully</code> koşuluyla bekleniyor. Yani Kong, şema kurulmadan ayağa kalkmaya çalışmıyor — ilk <code>up</code> komutunda race condition yaşamamanızın sebebi bu.</p>
         </div>
         <figure>
           <img src="images/01-docker-up.png" alt="docker compose ps çıktısı">
@@ -561,13 +561,13 @@ done</code></pre></div>
         <p><code>config.policy=local</code> sayacı Kong node'unun kendi belleğinde tutar. Tek node'lu lokal kurulumda doğru seçim, ama birden fazla Kong node'u varsa her node kendi sayacını tutacağı için gerçek limit <code>node sayısı × 5</code> olur. Üretimde <code>cluster</code> veya <code>redis</code> politikası kullanılır.</p>
 
         <h3>Key auth</h3>
-        <p>Üçüncü route'u API anahtarıyla koruyalım:</p>
+        <p>Üçüncü route'u API key ile koruyalım:</p>
         <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/services/httpbin-service/routes \
   --data name=secure-route --data 'paths[]=/secure'
 
 curl -X POST localhost:8001/routes/secure-route/plugins --data name=key-auth
 
-# Anahtarın sahibi bir Consumer olmalı
+# Key'in sahibi bir Consumer olmalı
 curl -X POST localhost:8001/consumers --data username=emre
 curl -X POST localhost:8001/consumers/emre/key-auth --data key=gizli-anahtar-123</code></pre></div>
         <p>Test:</p>
@@ -583,7 +583,7 @@ curl -i -H 'apikey: gizli-anahtar-123' localhost:8000/secure/get
         </figure>
         <div class="note">
           <span class="lbl">Önemli nokta</span>
-          <p>httpbin'in kodunda tek satır kimlik doğrulama yok. Anahtar kontrolü tamamen kapıda yapıldı ve backend sadece geçen isteği gördü. Gateway'in asıl değeri bu: güvenlik kodu, korumak istediğiniz servisin içinde yaşamıyor.</p>
+          <p>httpbin'in kodunda tek satır authentication kodu yok. API key kontrolü tamamen gateway'de yapıldı ve backend sadece geçen isteği gördü. Gateway'in asıl değeri bu: güvenlik kodu, korumak istediğiniz servisin içinde yaşamıyor.</p>
         </div>
       </section>
 
@@ -638,7 +638,7 @@ builder.Services.AddHttpClient("products", client =&gt;
     client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(5);
 });</code></pre></div>
-        <p>Bu bilinçli bir tercih. Kong <strong>kuzey-güney</strong> trafiği (dışarıdan içeriye) için duruyor; servisler arası <strong>doğu-batı</strong> trafiğini gateway'den geçirmek gereksiz bir atlama (hop) ve gereksiz bir arıza noktası ekler. Servis-servis iletişimini yönetmek istiyorsanız o işin aracı service mesh'tir, API gateway değil.</p>
+        <p>Bu bilinçli bir tercih. Kong <strong>north-south</strong> trafiği (dışarıdan içeriye) için duruyor; servisler arası <strong>east-west</strong> trafiğini gateway'den geçirmek gereksiz bir hop ve gereksiz bir point of failure ekler. Servis-servis iletişimini yönetmek istiyorsanız o işin aracı service mesh'tir, API gateway değil.</p>
 
         <h3>Kritik compose detayı</h3>
         <p>Her iki servisin compose tanımında <strong><code>ports:</code> yok</strong>:</p>
@@ -653,7 +653,7 @@ builder.Services.AddHttpClient("products", client =&gt;
       PRODUCTS_API_URL: http://products-api:8080
     expose:
       - "8080"</code></pre></div>
-        <p><code>expose</code>, portu yalnızca Docker iç ağına açar; <code>ports</code> ise host'a yayınlar. Yani kendi makinenizden <code>localhost:8080/internal/stats</code> diye bu servise ulaşamazsınız — <strong>dışarıya tek kapı Kong (8000)</strong>. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.</p>
+        <p><code>expose</code>, portu yalnızca Docker iç ağına açar; <code>ports</code> ise host'a yayınlar. Yani kendi makinenizden <code>localhost:8080/internal/stats</code> diye bu servise ulaşamazsınız — <strong>dışarıya açık tek adres Kong (8000)</strong>. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.</p>
         <figure>
           <img src="images/06-host-erisim-yok.png" alt="Host'tan doğrudan erişim yok: connection refused">
           <figcaption>Host'tan doğrudan erişim yok: connection refused</figcaption>
@@ -689,7 +689,7 @@ curl -X POST localhost:8001/services/products-service/routes \
         </figure>
         <div class="note">
           <span class="lbl">Kritik detay</span>
-          <p><code>paths</code> değerinin başındaki <code>~</code> bunun bir regex olduğunu, sonundaki <code>$</code> ise tam eşleşme gerektiğini söyler.</p>
+          <p><code>paths</code> değerinin başındaki <code>~</code> bunun bir regex olduğunu, sonundaki <code>$</code> ise exact match gerektiğini söyler.</p>
           <p>Bunu yazmazsanız — yani <code>paths[]=/api/products</code> deseniz — Kong <strong>prefix</strong> eşleştirir. O zaman <code>/api/products/3</code>, <code>/api/products/internal/stats</code> gibi altındaki her şey de açılır. Tek bir endpoint açacaksanız <code>$</code> pazarlık konusu değil.</p>
         </div>
         <p><code>methods[]=GET</code> aynı mantığın method tarafı: POST/PUT/DELETE istekleri bu route'a hiç eşleşmez, dolayısıyla hiçbir servise gitmez.</p>
@@ -701,15 +701,15 @@ GET  /api/internal/stats  -> 404
 GET  /api/orders          -> 404
 POST /api/products        -> 404  (method eşleşmedi)</code></pre></div>
         <figure>
-          <img src="images/09-dogrulanmis-404.png" alt="Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi">
-          <figcaption>Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi</figcaption>
+          <img src="images/09-dogrulanmis-404.png" alt="Beş isteğin sonucu: 1 geçti, 4 engellendi">
+          <figcaption>Beş isteğin sonucu: 1 geçti, 4 engellendi</figcaption>
         </figure>
-        <p>Bu 404'lerin önemi şu: istek .NET servisine <strong>hiç ulaşmıyor</strong>. Servis bu isteklerden haberdar bile değil, Kong kapıda çevirdi.</p>
+        <p>Bu 404'lerin önemi şu: istek .NET servisine <strong>hiç ulaşmıyor</strong>. Servis bu isteklerden haberdar bile değil, Kong gateway'de engelledi.</p>
         <p>Ama “haberdar değil” iddialı bir cümle. Kanıtlayalım.</p>
       </section>
 
       <section id="b7">
-        <h2><span class="n">07</span><span>“Kong Kapıda Çevirdi”yi Kanıtlamak</span></h2>
+        <h2><span class="n">07</span><span>“İstek Servise Ulaşmadı”yı Kanıtlamak</span></h2>
         <p>Engellenen bir isteğin arkaya gitmediğini üç ayrı yerden gözlemleyebilirsiniz.</p>
 
         <h3>Yöntem 1: Canlı karar akışı</h3>
@@ -793,7 +793,7 @@ curl -i localhost:8000/api/internal/stats  # engelli</code></pre></div>
           <img src="images/12-server-header.png" alt="Server header'ı: Kestrel mi, kong mu cevapladı?">
           <figcaption>Server header'ı: Kestrel mi, kong mu cevapladı?</figcaption>
         </figure>
-        <p><code>Server: Kestrel</code> görüyorsanız istek arkaya gitti. <code>Server: kong/...</code> görüyorsanız kapıda çevrildi. <code>X-Kong-Upstream-Latency</code> header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.</p>
+        <p><code>Server: Kestrel</code> görüyorsanız istek arkaya gitti. <code>Server: kong/...</code> görüyorsanız gateway engelledi. <code>X-Kong-Upstream-Latency</code> header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.</p>
         <p>Bir 404 ile karşılaştığınızda “bu benim servisimin 404'ü mü, gateway'in 404'ü mü?” sorusunu bu header saniyeler içinde cevaplar. Hata ayıklarken en çok işinize yarayacak bilgi muhtemelen bu olacak.</p>
       </section>
 
@@ -818,7 +818,7 @@ curl -i localhost:8000/api/internal/stats  # engelli</code></pre></div>
           <figcaption>Kong Manager route ekranı</figcaption>
         </figure>
         <p>Açık endpoint'i belirleyen sadece iki alan:</p>
-        <div class="flow">paths   = ~/api/products$    &lt;- hangi path (regex, $ = tam eşleşme)
+        <div class="flow">paths   = ~/api/products$    &lt;- hangi path (regex, $ = exact match)
 methods = GET                &lt;- hangi method</div>
         <p>Bunları değiştirirseniz dışarıya açık olan endpoint değişir. Deploy yok, build yok:</p>
         <div class="codeblock" data-lang="bash"><pre><code># Sadece path'i değiştir
@@ -859,7 +859,7 @@ curl -X PATCH localhost:8001/routes/public-products \
               <tr><td class="mono">routes</td><td>eşleşme kuralları (<code>paths</code>, <code>methods</code>, <code>hosts</code>)</td></tr>
               <tr><td class="mono">plugins</td><td>hangi plugin nerede açık, <code>config</code> kolonu JSONB</td></tr>
               <tr><td class="mono">consumers</td><td>API tüketicileri</td></tr>
-              <tr><td class="mono">keyauth_credentials</td><td>API anahtarları (<strong>düz metin</strong>, hash'li değil)</td></tr>
+              <tr><td class="mono">keyauth_credentials</td><td>API key'leri (<strong>düz metin</strong>, hash'li değil)</td></tr>
               <tr><td class="mono">ratelimiting_metrics</td><td>rate limit sayaçları (policy=cluster/redis ise dolar)</td></tr>
               <tr><td class="mono">targets / upstreams</td><td>load balancer havuzları</td></tr>
             </tbody>
@@ -874,7 +874,7 @@ join services s on r.service_id = s.id;</code></pre></div>
           <img src="images/14-dbeaver-routes.png" alt="DBeaver'da routes tablosu: paths ve methods kolonları">
           <figcaption>DBeaver'da routes tablosu: paths ve methods kolonları</figcaption>
         </figure>
-        <p><code>keyauth_credentials</code> tablosundaki satıra bakmanızı özellikle öneririm: <code>gizli-anahtar-123</code> orada <strong>düz metin</strong> olarak duruyor. API anahtarları Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için anahtarın kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.</p>
+        <p><code>keyauth_credentials</code> tablosundaki satıra bakmanızı özellikle öneririm: <code>gizli-anahtar-123</code> orada <strong>düz metin</strong> olarak duruyor. API key'leri Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için key'in kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.</p>
         <div class="note warn">
           <span class="lbl">Uyarı: buraya yazmayın</span>
           <p>Kong konfigürasyonu <strong>node başlarken belleğe yüklenir</strong> ve DB değişiklikleri otomatik yayılmaz. SQL ile <code>insert</code>/<code>update</code> yaparsanız Kong bunu görmeyebilir veya tutarsız bir duruma düşer (örneğin plugin'in <code>config</code> JSONB'sini şema doğrulamasından geçirmeden yazdınız).</p>
@@ -929,7 +929,7 @@ services:
 $D gateway sync --kong-addr http://kong:8001 kong.yaml</code></pre></div>
         <div class="note warn">
           <span class="lbl">Dikkat</span>
-          <p><code>dump</code> çıktısı consumer'ları ve anahtarlarını da içeriyor — yani <code>kong.yaml</code> içinde <code>gizli-anahtar-123</code> düz metin olarak duruyor. Gerçek projede API anahtarları bu dosyaya girmemeli; decK'in <code>--skip-consumers</code> flag'i veya env var / vault referansları kullanılır. Yoksa git geçmişinize kalıcı olarak bir sır yazmış olursunuz.</p>
+          <p><code>dump</code> çıktısı consumer'ları ve key'lerini de içeriyor — yani <code>kong.yaml</code> içinde <code>gizli-anahtar-123</code> düz metin olarak duruyor. Gerçek projede API key'leri bu dosyaya girmemeli; decK'in <code>--skip-consumers</code> flag'i veya env var / vault referansları kullanılır. Yoksa git geçmişinize kalıcı olarak bir sır yazmış olursunuz.</p>
         </div>
       </section>
 
@@ -953,7 +953,7 @@ curl -X POST localhost:8001/routes/public-products/plugins \
         <p>Üçünün ortak noktası: hiçbiri .NET kodunu değiştirmiyor. <code>proxy-cache</code> özellikle öğretici — ikinci isteğe Kong'un belleğinden cevap verilir, <code>products-api</code> o isteği hiç görmez. Yanıttaki <code>X-Cache-Status: Hit</code> header'ı bunu doğrular.</p>
         <p>Kurulabilen tüm plugin'lerin listesini merak ederseniz:</p>
         <div class="codeblock" data-lang="bash"><pre><code>curl -s localhost:8001/ | jq -r '.plugins.available_on_server | keys[]'</code></pre></div>
-        <p>Son olarak gözlemlenebilirlik için global bir Prometheus plugin'i:</p>
+        <p>Son olarak observability için global bir Prometheus plugin'i:</p>
         <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/plugins --data name=prometheus</code></pre></div>
         <figure>
           <img src="images/16-prometheus-metrics.png" alt="Prometheus plugin'i: route bazında metrikler">
@@ -967,10 +967,10 @@ curl -X POST localhost:8001/routes/public-products/plugins \
         <p>Bu kurulum lokal deneme için tasarlandı. Üretime taşımadan önce en az şu dört maddeye bakmak gerekiyor:</p>
         <div class="note warn">
           <span class="lbl">1 · Admin API asla public olmaz</span>
-          <p>Bizim kurulumda 8001 kimlik doğrulamasız ve host'a açık — yani o porta erişen herkes istediği route'u açabilir, istediği plugin'i kaldırabilir. Üretimde Admin API ya sadece <code>127.0.0.1</code>'e bind edilir, ya ayrı bir ağda tutulur, ya da RBAC'li Kong Enterprise kullanılır.</p>
+          <p>Bizim kurulumda 8001'de authentication yok ve host'a açık — yani o porta erişen herkes istediği route'u açabilir, istediği plugin'i kaldırabilir. Üretimde Admin API ya sadece <code>127.0.0.1</code>'e bind edilir, ya ayrı bir ağda tutulur, ya da RBAC'li Kong Enterprise kullanılır.</p>
         </div>
         <div class="note warn">
-          <span class="lbl">2 · API anahtarları düz metin</span>
+          <span class="lbl">2 · API key'leri düz metin</span>
           <p>Hem DB'de hem <code>kong.yaml</code>'da. <code>key-auth</code> hızlı prototip için iyi; gerçek senaryoda JWT veya OAuth2 plugin'leri daha uygun olur.</p>
         </div>
         <div class="note">
@@ -1001,7 +1001,7 @@ curl -X POST localhost:8001/routes/public-products/plugins \
         <ul>
           <li><strong>Upstream &amp; health check:</strong> Birden fazla <code>products-api</code> replikası tanımlayıp Kong'un ölen node'u devre dışı bırakmasını izlemek.</li>
           <li><strong>JWT / OAuth2 plugin'leri:</strong> <code>key-auth</code> yerine gerçek bir kimlik sağlayıcıyla entegrasyon.</li>
-          <li><strong>request-transformer:</strong> Backend'in beklediği header'ları kapıda eklemek, istemciden gelen tehlikeli header'ları silmek.</li>
+          <li><strong>request-transformer:</strong> Backend'in beklediği header'ları gateway'de eklemek, istemciden gelen tehlikeli header'ları silmek.</li>
           <li><strong>DB-less + CI/CD:</strong> <code>kong.yaml</code>'ı git'te tutup pipeline'da <code>deck gateway diff</code> ile gözden geçirip <code>sync</code> ile uygulamak.</li>
           <li><strong>Kong Ingress Controller:</strong> Aynı mantığı Kubernetes'te CRD'lerle yönetmek.</li>
           <li><strong>OpenTelemetry:</strong> Gateway'den başlayan trace'i .NET servislerine kadar uçtan uca takip etmek.</li>
