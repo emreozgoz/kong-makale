@@ -130,6 +130,8 @@ Artık `/demo` altına attığınız her şey httpbin'e gidiyor:
 curl -s localhost:8000/demo/get | jq
 ```
 
+![Düz proxy: /demo/get httpbin'e gidiyor](images/02-demo-proxy.png)
+
 Yanıtın header'larına bakın — Kong kendini belli ediyor:
 
 ```bash
@@ -142,6 +144,8 @@ Via: kong/3.9.4
 X-Kong-Upstream-Latency: 3
 X-Kong-Proxy-Latency: 1
 ```
+
+![Kong'un yanıta eklediği Via ve latency header'ları](images/03-kong-headers.png)
 
 `X-Kong-Upstream-Latency` arkadaki servisin kaç ms'de cevap verdiğini, `X-Kong-Proxy-Latency` ise Kong'un kendi karar süresini söyler. Bu iki header yazının 7. bölümünde işimize yarayacak.
 
@@ -177,6 +181,8 @@ done
 429
 ```
 
+![Rate limit: 6. istekten itibaren 429](images/04-rate-limit-429.png)
+
 6. istekten itibaren `429 Too Many Requests`. Burada önemli olan şu: bu 429'ları **Kong üretti**, httpbin bu iki isteği hiç görmedi.
 
 `config.policy=local` sayacı Kong node'unun kendi belleğinde tutar. Tek node'lu lokal kurulumda doğru seçim, ama birden fazla Kong node'u varsa her node kendi sayacını tutacağı için gerçek limit `node sayısı × 5` olur. Üretimde `cluster` veya `redis` politikası kullanılır.
@@ -206,6 +212,8 @@ curl -i localhost:8000/secure/get
 curl -i -H 'apikey: gizli-anahtar-123' localhost:8000/secure/get
 # HTTP/1.1 200 OK
 ```
+
+![key-auth: anahtarsız 401, anahtarlı 200](images/05-key-auth.png)
 
 **Önemli nokta:** httpbin'in kodunda tek satır kimlik doğrulama yok. Anahtar kontrolü tamamen kapıda yapıldı ve backend sadece geçen isteği gördü. Gateway'in asıl değeri bu: güvenlik kodu, korumak istediğiniz servisin içinde yaşamıyor.
 
@@ -289,6 +297,8 @@ Her iki servisin compose tanımında **`ports:` yok**:
 
 `expose`, portu yalnızca Docker iç ağına açar; `ports` ise host'a yayınlar. Yani kendi makinenizden `localhost:8080/internal/stats` diye bu servise ulaşamazsınız — **dışarıya tek kapı Kong (8000)**. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.
 
+![Host'tan doğrudan erişim yok: connection refused](images/06-host-erisim-yok.png)
+
 Servisleri iç ağdan görmek isterseniz aynı ağa geçici bir container atmanız gerekir:
 
 ```bash
@@ -299,6 +309,8 @@ docker run --rm --network kong-test_default curlimages/curl \
 ```json
 {"totalProducts":4,"outOfStock":1,"inventoryValue":126860.00,"secret":"bu-veri-disariya-cikmamali"}
 ```
+
+![Aynı veri iç ağdan görünüyor: /internal/stats](images/07-ic-agdan-stats.png)
 
 Veri orada, çalışıyor. Şimdi bunun dışarıya **çıkmadığını** garanti etmemiz gerekiyor.
 
@@ -322,6 +334,8 @@ curl -X POST localhost:8001/services/products-service/routes \
   --data strip_path=true
 ```
 
+![Service + Route oluşturulurken Admin API yanıtı](images/08-route-olustur.png)
+
 **Kritik detay:** `paths` değerinin başındaki `~` bunun bir regex olduğunu, sonundaki `$` ise tam eşleşme gerektiğini söyler.
 
 Bunu yazmazsanız — yani `paths[]=/api/products` deseniz — Kong **prefix** eşleştirir. O zaman `/api/products/3`, `/api/products/internal/stats` gibi altındaki her şey de açılır. Tek bir endpoint açacaksanız `$` pazarlık konusu değil.
@@ -339,6 +353,8 @@ GET  /api/internal/stats  -> 404
 GET  /api/orders          -> 404
 POST /api/products        -> 404  (method eşleşmedi)
 ```
+
+![Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi](images/09-dogrulanmis-404.png)
 
 Bu 404'lerin önemi şu: istek .NET servisine **hiç ulaşmıyor**. Servis bu isteklerden haberdar bile değil, Kong kapıda çevirdi.
 
@@ -406,7 +422,7 @@ Script'i ayrı bir terminalde bırakıp başka bir terminalden istek atın:
 404  POST  /api/products       -> CEVRILDI  eslesen route yok, hicbir servise gitmedi
 ```
 
-![izle.sh canlı karar akışı](images/02-izle-akis.png)
+![izle.sh canlı karar akışı](images/10-izle-akis.png)
 
 ### Yöntem 2: İki tarafın loglarını saymak
 
@@ -425,6 +441,8 @@ docker compose logs products-api | grep -c 'Request starting'       # -> 1
 
 Kong beş istek gördü, .NET servisi bir. Aradaki dört istek servise hiç varmadı — ASP.NET Core'un `Request starting` satırı bile oluşmadı. Bu, "servis isteği gördü ama 404 döndü" senaryosunu tamamen eler.
 
+![Kong 5 istek gördü, products-api 1](images/11-log-karsilastirma.png)
+
 ### Yöntem 3: Yanıt header'ları
 
 En hızlı ipucu ise tek bir header'da:
@@ -438,6 +456,8 @@ curl -i localhost:8000/api/internal/stats  # engelli
 |---|---|---|
 | `Server` | **`Kestrel`** (.NET cevapladı) | **`kong/3.9.4`** (Kong cevapladı) |
 | `X-Kong-Upstream-Latency` | var | **yok** |
+
+![Server header'ı: Kestrel mi, kong mu cevapladı?](images/12-server-header.png)
 
 `Server: Kestrel` görüyorsanız istek arkaya gitti. `Server: kong/...` görüyorsanız kapıda çevrildi. `X-Kong-Upstream-Latency` header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.
 
@@ -459,7 +479,7 @@ Aynı veriye bakan üç arayüz var:
 | Kong Manager | http://localhost:8002 → Routes → public-products → Edit |
 | Veritabanı | DBeaver (localhost:5433) → `routes` tablosu (sadece OKU) |
 
-![Kong Manager route ekranı](images/03-kong-manager.png)
+![Kong Manager route ekranı](images/13-kong-manager-route.png)
 
 Açık endpoint'i belirleyen sadece iki alan:
 
@@ -528,6 +548,8 @@ from routes r
 join services s on r.service_id = s.id;
 ```
 
+![DBeaver'da routes tablosu: paths ve methods kolonları](images/14-dbeaver-routes.png)
+
 `keyauth_credentials` tablosundaki satıra bakmanızı özellikle öneririm: `gizli-anahtar-123` orada **düz metin** olarak duruyor. API anahtarları Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için anahtarın kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.
 
 ### UYARI: buraya yazmayın
@@ -565,6 +587,8 @@ $D gateway diff --kong-addr http://kong:8001 kong.yaml
 # Dosyayı uygula (Kong'u dosyadaki hale getirir)
 $D gateway sync --kong-addr http://kong:8001 kong.yaml
 ```
+
+![deck gateway diff: uygulamadan önce farkı görmek](images/15-deck-diff.png)
 
 Çıkan `kong.yaml` artık okunabilir, versiyonlanabilir bir dosya:
 
@@ -632,6 +656,8 @@ Son olarak gözlemlenebilirlik için global bir Prometheus plugin'i:
 ```bash
 curl -X POST localhost:8001/plugins --data name=prometheus
 ```
+
+![Prometheus plugin'i: route bazında metrikler](images/16-prometheus-metrics.png)
 
 Artık `localhost:8001/metrics` adresinde route bazında istek sayıları, status kodu dağılımı ve gecikme histogramları var — her servise ayrı ayrı metrik kodu yazmadan.
 
