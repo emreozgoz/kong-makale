@@ -1,0 +1,9 @@
+# Claude Code lokal ayarlari
+.claude/settings.local.json
+
+# .NET
+bin/
+obj/
+
+# macOS
+.DS_Store

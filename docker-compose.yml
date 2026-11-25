@@ -1,0 +1,107 @@
+# Kong Gateway OSS - lokal deneme ortami
+#   8000 -> Proxy       (istekler buraya gelir, Kong upstream'e yonlendirir)
+#   8001 -> Admin API   (konfigurasyon REST API'si)
+#   8002 -> Kong Manager (web arayuz)
+#   8080 -> httpbin     (test icin sahte backend servis)
+
+services:
+  kong-db:
+    image: postgres:16-alpine
+    container_name: kong-db
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+    ports:
+      # DBeaver vb. icin host'a acik. Host'ta zaten 5432'de baska bir
+      # PostgreSQL calistigi icin disariya 5433 veriyoruz.
+      # Sol taraf = host portu (5433), sag taraf = container ici (5432).
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - kong-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Kong'un semasini DB'ye bir kez kurar, sonra cikar
+  kong-migrations:
+    image: kong:3.9
+    container_name: kong-migrations
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+    command: kong migrations bootstrap
+    restart: on-failure
+
+  kong:
+    image: kong:3.9
+    container_name: kong
+    depends_on:
+      kong-db:
+        condition: service_healthy
+      kong-migrations:
+        condition: service_completed_successfully
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      # loglar container stdout/stderr'a
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      # Admin API'yi container disina ac (SADECE lokal deneme icin!)
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      # Kong Manager (web UI)
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_ADMIN_GUI_API_URL: http://localhost:8001
+    ports:
+      - "8000:8000"   # proxy (http)
+      - "8443:8443"   # proxy (https)
+      - "8001:8001"   # admin api
+      - "8002:8002"   # kong manager ui
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # Istekleri aynen geri yansitan test backend'i (upstream rolunde)
+  httpbin:
+    image: mccutchen/go-httpbin:v2.15.0
+    container_name: httpbin
+    ports:
+      - "8080:8080"
+
+  # --- .NET servisleri -------------------------------------------------
+  # Dikkat: bunlarin "ports:" tanimi YOK. Yani host'tan (senin makinenden)
+  # dogrudan erisilemezler. Disariya tek kapi Kong (8000). Gercek hayatta
+  # da mikroservisler boyle durur: sadece ic agda.
+
+  products-api:
+    build: ./services/products-api
+    container_name: products-api
+    expose:
+      - "8080"
+
+  orders-api:
+    build: ./services/orders-api
+    container_name: orders-api
+    environment:
+      PRODUCTS_API_URL: http://products-api:8080
+    depends_on:
+      - products-api
+    expose:
+      - "8080"
+
+volumes:
+  kong-db-data:
