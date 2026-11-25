@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="Emre ÖZGÖZ">
+<meta name="description" content="Kong Gateway OSS ve .NET 9 ile tek kapı: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="İstek Servise Hiç Ulaşmadı">
+<meta property="og:description" content="Kong Gateway OSS ve .NET 9 ile tek kapı: host'a hiç port açmayan iki mikroservisin yalnızca bir endpoint'ini dışa açmak ve engellenen isteklerin servise hiç ulaşmadığını kanıtlamak.">
+<style>:root{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>İstek Servise Hiç Ulaşmadı</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+:root{
+  --paper:#F4F6F8;
+  --surface:#FFFFFF;
+  --surface-sunk:#EDF0F4;
+  --ink:#111823;
+  --ink-soft:#56636F;
+  --ink-faint:#8795A2;
+  --rule:#DCE2E8;
+  --rule-strong:#C3CCD5;
+  --accent:#1B3A6B;
+  --accent-soft:#E7EDF6;
+  --pass:#2E6F4E;
+  --pass-soft:#E6F1EA;
+  --block:#A8431F;
+  --block-soft:#F8EAE3;
+  --code-ink:#1C2630;
+  --shadow:0 1px 2px rgba(17,24,35,.05), 0 8px 24px -16px rgba(17,24,35,.18);
+
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+
+  --step--1:.8125rem;
+  --step-0:1.0625rem;
+  --step-1:1.1875rem;
+  --step-2:1.5rem;
+  --step-3:1.9375rem;
+  --step-4:2.5rem;
+  --measure:68ch;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1419;
+    --surface:#151C24;
+    --surface-sunk:#111920;
+    --ink:#E4EAF0;
+    --ink-soft:#9AA7B4;
+    --ink-faint:#71808D;
+    --rule:#26313C;
+    --rule-strong:#36434F;
+    --accent:#8FB2E0;
+    --accent-soft:#1A2634;
+    --pass:#74C295;
+    --pass-soft:#16241C;
+    --block:#E39268;
+    --block-soft:#2A1C15;
+    --code-ink:#D7DEE6;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1419;
+  --surface:#151C24;
+  --surface-sunk:#111920;
+  --ink:#E4EAF0;
+  --ink-soft:#9AA7B4;
+  --ink-faint:#71808D;
+  --rule:#26313C;
+  --rule-strong:#36434F;
+  --accent:#8FB2E0;
+  --accent-soft:#1A2634;
+  --pass:#74C295;
+  --pass-soft:#16241C;
+  --block:#E39268;
+  --block-soft:#2A1C15;
+  --code-ink:#D7DEE6;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--step-0);
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+
+/* ---------- masthead ---------- */
+.masthead{padding:clamp(40px,7vw,76px) 0 0}
+.eyebrow{
+  font-family:var(--f-mono);font-size:var(--step--1);font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);
+  display:flex;flex-wrap:wrap;gap:.5em 1em;margin-bottom:1.1em;
+}
+h1{
+  font-family:var(--f-display);font-weight:800;
+  font-size:clamp(2rem,5.2vw,3.5rem);line-height:1.04;
+  letter-spacing:-.022em;text-wrap:balance;margin:0;
+  max-width:24ch;
+}
+h1 .sub{display:block;font-weight:500;color:var(--ink-soft);font-size:.56em;line-height:1.18;letter-spacing:-.01em;margin-top:.5em;max-width:30ch}
+.deck{
+  font-size:var(--step-1);color:var(--ink-soft);max-width:60ch;
+  margin:1.6em 0 0;border-left:3px solid var(--accent);padding-left:1.1em;
+}
+.deck em{font-style:italic;color:var(--ink)}
+.byline{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:.5em 1.3em;
+  margin-top:2.2em;padding-bottom:1.3em;border-bottom:1px solid var(--rule);
+  font-family:var(--f-mono);font-size:var(--step--1);color:var(--ink-faint);
+}
+.byline .who{color:var(--ink);font-weight:500}
+.tags{display:flex;flex-wrap:wrap;gap:.45em}
+.tags span{
+  border:1px solid var(--rule-strong);border-radius:999px;padding:.15em .7em;
+  color:var(--ink-soft);
+}
+
+/* ---------- gate log (hero device) ---------- */
+.gate{
+  margin:clamp(30px,5vw,48px) 0 0;background:var(--surface);
+  border:1px solid var(--rule);box-shadow:var(--shadow);
+}
+.gate-head{
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;
+  gap:.6em;padding:14px clamp(16px,2.4vw,24px);border-bottom:1px solid var(--rule);
+  background:var(--surface-sunk);
+}
+.gate-head b{font-family:var(--f-display);font-size:var(--step-0);font-weight:700;letter-spacing:-.01em}
+.gate-head span{font-family:var(--f-mono);font-size:var(--step--1);color:var(--ink-faint)}
+.gate-rows{overflow-x:auto}
+.gate-row{
+  display:grid;grid-template-columns:4.2em minmax(13em,1fr) 3.4em 7.4em;
+  align-items:center;gap:0 clamp(8px,1.6vw,18px);
+  padding:11px clamp(16px,2.4vw,24px);
+  font-family:var(--f-mono);font-size:var(--step--1);
+  border-bottom:1px solid var(--rule);min-width:30em;
+}
+.gate-row:last-child{border-bottom:0}
+.gate-row .m{color:var(--ink-faint);font-weight:500}
+.gate-row .p{color:var(--ink);white-space:nowrap}
+.gate-row .s{font-weight:700;font-variant-numeric:tabular-nums}
+.gate-row.ok .s{color:var(--pass)}
+.gate-row.no .s{color:var(--block)}
+.stamp{
+  justify-self:start;font-family:var(--f-mono);font-size:.72rem;font-weight:700;
+  letter-spacing:.1em;padding:.3em .62em;
+  border:1.5px solid currentColor;border-radius:2px;line-height:1;
+}
+.ok .stamp{color:var(--pass);background:var(--pass-soft)}
+.no .stamp{color:var(--block);background:var(--block-soft);transform:rotate(-1.6deg)}
+.gate-foot{
+  padding:13px clamp(16px,2.4vw,24px);border-top:1px solid var(--rule);
+  background:var(--surface-sunk);font-size:var(--step--1);color:var(--ink-soft);
+}
+.gate-foot code{font-family:var(--f-mono);color:var(--ink)}
+
+/* ---------- layout ---------- */
+.shell{display:block;padding:clamp(40px,6vw,64px) 0 0}
+@media (min-width:1040px){
+  .shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:clamp(32px,5vw,64px);align-items:start}
+}
+nav.toc{display:none}
+@media (min-width:1040px){
+  nav.toc{display:block;position:sticky;top:28px}
+}
+nav.toc h2{
+  font-family:var(--f-mono);font-size:.72rem;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint);margin:0 0 1em;
+}
+nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.55em}
+nav.toc a{
+  display:grid;grid-template-columns:1.7em 1fr;gap:.2em;
+  font-family:var(--f-display);font-size:.85rem;line-height:1.3;
+  color:var(--ink-soft);text-decoration:none;
+  border-left:2px solid transparent;padding-left:.7em;margin-left:-.7em;
+  transition:color .15s,border-color .15s;
+}
+nav.toc a .n{font-family:var(--f-mono);color:var(--ink-faint);font-size:.78rem}
+nav.toc a:hover{color:var(--accent);border-left-color:var(--accent)}
+
+.toc-mobile{margin:clamp(28px,5vw,40px) 0 0;border:1px solid var(--rule);background:var(--surface)}
+@media (min-width:1040px){.toc-mobile{display:none}}
+.toc-mobile summary{
+  cursor:pointer;padding:12px 16px;font-family:var(--f-mono);font-size:var(--step--1);
+  letter-spacing:.08em;text-transform:uppercase;color:var(--accent);
+}
+.toc-mobile ol{list-style:none;margin:0;padding:0 16px 14px;display:flex;flex-direction:column;gap:.5em}
+.toc-mobile a{font-family:var(--f-display);font-size:.9rem;color:var(--ink-soft);text-decoration:none}
+.toc-mobile a .n{font-family:var(--f-mono);color:var(--ink-faint);margin-right:.5em}
+
+/* ---------- article ---------- */
+article{max-width:var(--measure)}
+section{padding-bottom:clamp(34px,5vw,52px)}
+section + section{border-top:1px solid var(--rule);padding-top:clamp(34px,5vw,52px)}
+h2{
+  font-family:var(--f-display);font-weight:700;font-size:var(--step-3);
+  line-height:1.12;letter-spacing:-.018em;text-wrap:balance;
+  margin:0 0 1.1em;display:grid;grid-template-columns:auto 1fr;gap:.5em;align-items:baseline;
+}
+h2 .n{
+  font-family:var(--f-mono);font-size:.46em;font-weight:500;color:var(--accent);
+  letter-spacing:.04em;padding-top:.5em;
+}
+h3{
+  font-family:var(--f-display);font-weight:700;font-size:var(--step-1);
+  letter-spacing:-.01em;margin:2.4em 0 .9em;text-wrap:balance;
+}
+p{margin:0 0 1.15em}
+article > section > p:last-child{margin-bottom:0}
+a{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+ul{margin:0 0 1.3em;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:.55em}
+ul li{padding-left:1.35em;position:relative}
+ul li::before{
+  content:"";position:absolute;left:.25em;top:.62em;
+  width:5px;height:5px;background:var(--rule-strong);
+}
+code{
+  font-family:var(--f-mono);font-size:.86em;
+  background:var(--surface-sunk);border:1px solid var(--rule);
+  padding:.08em .34em;border-radius:3px;color:var(--ink);
+  word-break:break-word;
+}
+p code,li code,td code{white-space:nowrap}
+
+/* code blocks */
+.codeblock{
+  margin:0 0 1.4em;background:var(--surface);border:1px solid var(--rule);
+  box-shadow:var(--shadow);
+}
+.codeblock::before{
+  content:attr(data-lang);display:block;
+  font-family:var(--f-mono);font-size:.68rem;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-faint);
+  padding:8px 14px;border-bottom:1px solid var(--rule);background:var(--surface-sunk);
+}
+.codeblock pre{
+  margin:0;padding:14px;overflow-x:auto;
+  font-family:var(--f-mono);font-size:.845rem;line-height:1.6;color:var(--code-ink);
+  tab-size:2;
+}
+.codeblock code{background:none;border:0;padding:0;font-size:inherit;white-space:pre}
+
+/* flow diagram line */
+.flow{
+  margin:0 0 1.4em;padding:16px;background:var(--accent-soft);
+  border:1px solid var(--rule);font-family:var(--f-mono);font-size:.86rem;
+  color:var(--ink);overflow-x:auto;white-space:pre;
+}
+
+/* tables */
+.tbl{margin:0 0 1.5em;overflow-x:auto;border:1px solid var(--rule);background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:30em;font-size:.93rem}
+caption{
+  caption-side:top;text-align:left;padding:11px 14px;background:var(--surface-sunk);
+  border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-size:.7rem;
+  font-weight:500;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);
+}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--f-display);font-weight:700;font-size:.85rem;color:var(--ink);background:var(--surface-sunk)}
+tbody tr:last-child td{border-bottom:0}
+td.mono,th.mono{font-family:var(--f-mono);font-size:.82rem}
+td.yes{color:var(--pass);font-weight:600}
+td.no{color:var(--block);font-weight:600}
+.tag-pub{font-family:var(--f-mono);font-size:.7rem;font-weight:700;letter-spacing:.09em;color:var(--pass);background:var(--pass-soft);border:1px solid var(--pass);border-radius:2px;padding:.14em .5em}
+.tag-int{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.09em;color:var(--ink-soft);background:var(--surface-sunk);border:1px solid var(--rule-strong);border-radius:2px;padding:.14em .5em}
+
+/* notes */
+.note{
+  margin:0 0 1.5em;padding:15px 18px;background:var(--surface);
+  border:1px solid var(--rule);border-left:3px solid var(--accent);
+}
+.note.warn{border-left-color:var(--block)}
+.note.warn .lbl{color:var(--block)}
+.note .lbl{
+  display:block;font-family:var(--f-mono);font-size:.7rem;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.55em;
+}
+.note p:last-child{margin-bottom:0}
+
+/* pull quote */
+.pull{
+  margin:0 0 1.6em;font-family:var(--f-display);font-weight:500;
+  font-size:var(--step-2);line-height:1.26;letter-spacing:-.014em;
+  color:var(--ink);border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);
+  padding:.9em 0;text-wrap:balance;
+}
+
+/* figure placeholder */
+figure{margin:0 0 1.5em}
+.shot{
+  border:1.5px dashed var(--rule-strong);background:var(--surface-sunk);
+  padding:30px 18px;text-align:center;
+}
+.shot b{display:block;font-family:var(--f-display);font-size:.95rem;color:var(--ink-soft)}
+.shot span{display:block;font-family:var(--f-mono);font-size:.76rem;color:var(--ink-faint);margin-top:.5em}
+figcaption{font-family:var(--f-mono);font-size:.76rem;color:var(--ink-faint);margin-top:.6em}
+
+/* key-value strip */
+.kv{display:flex;flex-direction:column;gap:0;margin:0 0 1.5em;border:1px solid var(--rule);background:var(--surface)}
+.kv div{display:grid;grid-template-columns:minmax(7em,auto) 1fr;gap:1em;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:.9rem}
+.kv div:last-child{border-bottom:0}
+.kv dt,.kv b{font-family:var(--f-mono);font-size:.8rem;color:var(--ink-faint);letter-spacing:.04em}
+.kv span{font-family:var(--f-mono);font-size:.84rem;color:var(--ink)}
+
+/* footer */
+footer{border-top:1px solid var(--rule);margin-top:clamp(40px,6vw,64px);padding:clamp(34px,5vw,52px) 0 clamp(50px,8vw,80px)}
+footer .inner{max-width:var(--measure)}
+footer h2{font-size:var(--step-2)}
+.sign{font-family:var(--f-display);color:var(--ink-soft);margin-top:2em}
+.sign a{font-weight:600}
+.repo{
+  display:block;margin:0 0 1.5em;padding:14px 16px;background:var(--surface);
+  border:1px solid var(--rule);border-left:3px solid var(--accent);
+  font-family:var(--f-mono);font-size:.86rem;text-decoration:none;color:var(--accent);
+  word-break:break-all;
+}
+.repo b{display:block;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:.4em}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" lang="tr">
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>Kong Gateway OSS 3.9</span><span>.NET 9</span><span>Docker Compose</span><span>decK</span>
+    </div>
+    <h1>İstek Servise Hiç Ulaşmadı
+      <span class="sub">Kong Gateway ile .NET Mikroservislerine Tek Kapı Açmak</span>
+    </h1>
+    <p class="deck">Dışarı açmadığımız bir endpoint'e gelen istek, .NET servisine <em>hiç ulaşmaz</em>. “Ulaşmaz” lafta kalmasın diye bunu üç ayrı yerden gözlemleyeceğiz.</p>
+    <div class="byline">
+      <span class="who">Emre ÖZGÖZ</span>
+      <span>13 dk okuma</span>
+      <span class="tags"><span>kong</span><span>api-gateway</span><span>dotnet</span><span>docker</span><span>microservices</span></span>
+    </div>
+  </header>
+
+  <div class="gate" aria-label="Doğrulanmış kapı kaydı">
+    <div class="gate-head">
+      <b>Kapı kaydı — doğrulanmış davranış</b>
+      <span>products-api · route: public-products</span>
+    </div>
+    <div class="gate-rows">
+      <div class="gate-row ok"><span class="m">GET</span><span class="p">/api/products</span><span class="s">200</span><span class="stamp">GEÇTİ</span></div>
+      <div class="gate-row no"><span class="m">GET</span><span class="p">/api/products/3</span><span class="s">404</span><span class="stamp">ÇEVRİLDİ</span></div>
+      <div class="gate-row no"><span class="m">GET</span><span class="p">/api/internal/stats</span><span class="s">404</span><span class="stamp">ÇEVRİLDİ</span></div>
+      <div class="gate-row no"><span class="m">GET</span><span class="p">/api/orders</span><span class="s">404</span><span class="stamp">ÇEVRİLDİ</span></div>
+      <div class="gate-row no"><span class="m">POST</span><span class="p">/api/products</span><span class="s">404</span><span class="stamp">ÇEVRİLDİ</span></div>
+    </div>
+    <div class="gate-foot">Dört “çevrildi” satırı .NET servisine hiç varmadı: <code>latencies.proxy = -1</code>, yani ölçülecek bir upstream süresi bile oluşmadı.</div>
+  </div>
+
+  <details class="toc-mobile">
+    <summary>İçindekiler · 13 bölüm</summary>
+    <ol>
+      <li><a href="#b1"><span class="n">01</span>Giriş: Neden API Gateway?</a></li>
+      <li><a href="#b2"><span class="n">02</span>Kong 101 — Temel Kavramlar</a></li>
+      <li><a href="#b3"><span class="n">03</span>Ortamı Kurmak</a></li>
+      <li><a href="#b4"><span class="n">04</span>İlk Denemeler</a></li>
+      <li><a href="#b5"><span class="n">05</span>Portu Olmayan İki .NET Servisi</a></li>
+      <li><a href="#b6"><span class="n">06</span>Tek Endpoint'i Dışa Açmak</a></li>
+      <li><a href="#b7"><span class="n">07</span>“Kapıda Çevirdi”yi Kanıtlamak</a></li>
+      <li><a href="#b8"><span class="n">08</span>Konfigürasyon Nerede Yaşıyor?</a></li>
+      <li><a href="#b9"><span class="n">09</span>Postgres'e Bakmak</a></li>
+      <li><a href="#b10"><span class="n">10</span>decK ile Declarative Config</a></li>
+      <li><a href="#b11"><span class="n">11</span>Public Endpoint'i Sağlamlaştırmak</a></li>
+      <li><a href="#b12"><span class="n">12</span>Üretim İçin Dikkat</a></li>
+      <li><a href="#b13"><span class="n">13</span>Sonuç ve İleri Adımlar</a></li>
+    </ol>
+  </details>
+
+  <div class="shell">
+    <nav class="toc" aria-label="İçindekiler">
+      <h2>İçindekiler</h2>
+      <ol>
+        <li><a href="#b1"><span class="n">01</span><span>Giriş: Neden API Gateway?</span></a></li>
+        <li><a href="#b2"><span class="n">02</span><span>Kong 101 — Temel Kavramlar</span></a></li>
+        <li><a href="#b3"><span class="n">03</span><span>Ortamı Kurmak</span></a></li>
+        <li><a href="#b4"><span class="n">04</span><span>İlk Denemeler</span></a></li>
+        <li><a href="#b5"><span class="n">05</span><span>Portu Olmayan İki Servis</span></a></li>
+        <li><a href="#b6"><span class="n">06</span><span>Tek Endpoint'i Dışa Açmak</span></a></li>
+        <li><a href="#b7"><span class="n">07</span><span>Kanıtlamak</span></a></li>
+        <li><a href="#b8"><span class="n">08</span><span>Konfigürasyon Nerede?</span></a></li>
+        <li><a href="#b9"><span class="n">09</span><span>Postgres'e Bakmak</span></a></li>
+        <li><a href="#b10"><span class="n">10</span><span>decK ile Declarative Config</span></a></li>
+        <li><a href="#b11"><span class="n">11</span><span>Sağlamlaştırmak</span></a></li>
+        <li><a href="#b12"><span class="n">12</span><span>Üretim İçin Dikkat</span></a></li>
+        <li><a href="#b13"><span class="n">13</span><span>Sonuç ve İleri Adımlar</span></a></li>
+      </ol>
+    </nav>
+
+    <article>
+      <section id="b1">
+        <h2><span class="n">01</span><span>Giriş: Neden API Gateway?</span></h2>
+        <p>Mikroservis mimarisine geçen ekiplerin büyük bölümü şu noktada tıkanır: servis sayısı arttı, peki dışarıya hangi kapıdan çıkıyorlar?</p>
+        <p>İlk refleks genelde her servisi kendi portundan dışarı açmak olur. Kısa vadede çalışır, ama her yeni servis şu listeyi baştan yazmanızı ister:</p>
+        <ul>
+          <li><strong>Kimlik doğrulama</strong> her servise tek tek yazılır; biri unutur, o servis açıkta kalır.</li>
+          <li><strong>Rate limiting</strong> yoktur veya her serviste farklı şekilde vardır.</li>
+          <li><strong>CORS</strong> ayarları servis başına kopyalanır, biri eski kalır.</li>
+          <li><strong>Hangi endpoint'in dışarı açık olduğu</strong> kod içine gömülüdür; görmek için kodu okumak gerekir.</li>
+          <li>Bir endpoint'i kapatmak <strong>deploy</strong> gerektirir.</li>
+        </ul>
+        <p>API Gateway bu ortak işleri tek bir yere taşır. Client ile backend servislerinizin arasına girer, her istek ondan geçer; yönlendirme, kimlik doğrulama, kota, dönüştürme ve gözlemlenebilirlik kapıda hallolur. Backend servisiniz bunların hiçbirinden haberdar olmaz — ve asıl kazanç da budur.</p>
+        <p>Bu yazıda gateway olarak <strong>Kong Gateway OSS</strong>, arka taraftaki servisler için <strong>.NET 9</strong> kullanacağız. Hedefimiz tek bir cümleyi uçtan uca kanıtlamak:</p>
+        <p class="pull">Dışarı açmadığımız bir endpoint'e gelen istek, .NET servisine hiç ulaşmaz.</p>
+        <p>“Ulaşmaz” lafta kalmasın diye bunu üç ayrı yerden gözlemleyeceğiz.</p>
+      </section>
+
+      <section id="b2">
+        <h2><span class="n">02</span><span>Kong 101 — Temel Kavramlar</span></h2>
+        <p>Kong'da her şey dört kavramın üzerine kurulu:</p>
+        <div class="tbl">
+          <table>
+            <caption>Temel kavramlar</caption>
+            <thead><tr><th>Kavram</th><th>Ne demek</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Service</strong></td><td>Arka taraftaki gerçek servis (upstream). Örnek: <code>http://products-api:8080</code></td></tr>
+              <tr><td><strong>Route</strong></td><td>Gelen istek hangi kurala uyarsa o Service'e gider. Örnek: path <code>/api/products</code></td></tr>
+              <tr><td><strong>Plugin</strong></td><td>İstek/yanıt üzerinde çalışan davranış. Global, Service, Route veya Consumer bazlı</td></tr>
+              <tr><td><strong>Consumer</strong></td><td>API'yi tüketen taraf (kullanıcı/uygulama). Anahtarlar ve kotalar buna bağlanır</td></tr>
+              <tr><td><strong>Upstream</strong></td><td>Birden fazla hedefi (target) olan, yük dengelenmiş havuz</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Akış şöyle işler:</p>
+        <div class="flow">Client -> [Route eşleşir] -> [Plugin'ler çalışır] -> Service -> Backend</div>
+        <p>Bu zincirin en kritik halkası ilk ok: <strong>Route eşleşmezse zincir orada biter.</strong> Plugin'ler çalışmaz, Service'e gidilmez, backend isteği hiç görmez. Yazının geri kalanı büyük ölçüde bu cümlenin sonuçlarıyla ilgili.</p>
+      </section>
+
+      <section id="b3">
+        <h2><span class="n">03</span><span>Ortamı Kurmak: Docker ile Kong Gateway OSS</span></h2>
+        <p>Kong'u yerelde çalıştırmanın en pratik yolu Docker Compose. Kurulumumuz dört parçadan oluşuyor: Postgres (konfigürasyonun yaşadığı yer), bir kerelik migration container'ı, Kong'un kendisi ve test için bir sahte backend.</p>
+        <div class="codeblock" data-lang="docker-compose.yml"><pre><code>services:
+  kong-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kongpass
+      POSTGRES_DB: kong
+    ports:
+      # Host'ta zaten 5432'de başka bir PostgreSQL çalıştığı için 5433 veriyoruz.
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 5s
+
+  # Kong'un şemasını DB'ye bir kez kurar, sonra çıkar
+  kong-migrations:
+    image: kong:3.9
+    depends_on:
+      kong-db: { condition: service_healthy }
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+    command: kong migrations bootstrap
+
+  kong:
+    image: kong:3.9
+    depends_on:
+      kong-migrations: { condition: service_completed_successfully }
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kongpass
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001      # SADECE lokal deneme için!
+      KONG_ADMIN_GUI_LISTEN: 0.0.0.0:8002
+    ports:
+      - "8000:8000"   # proxy
+      - "8001:8001"   # admin api
+      - "8002:8002"   # kong manager ui</code></pre></div>
+        <p><code>docker compose up -d</code> dedikten sonra elinizde şu adresler olur:</p>
+        <div class="tbl">
+          <table>
+            <caption>Ortamdaki adresler</caption>
+            <thead><tr><th>Adres</th><th>Ne</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">localhost:8000</td><td><strong>Proxy</strong> — istekleri buraya atıyorsunuz</td></tr>
+              <tr><td class="mono">localhost:8001</td><td><strong>Admin API</strong> — konfigürasyon REST API'si</td></tr>
+              <tr><td class="mono">localhost:8002</td><td><strong>Kong Manager</strong> — web arayüz</td></tr>
+              <tr><td class="mono">localhost:8080</td><td><strong>httpbin</strong> — test backend'i (Kong'u bypass edip doğrudan görebilirsiniz)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <span class="lbl">Dikkat edilecek nokta</span>
+          <p><code>kong-migrations</code> container'ı <code>service_completed_successfully</code> koşuluyla bekleniyor. Yani Kong, şema kurulmadan ayağa kalkmaya çalışmıyor — ilk <code>up</code> komutunda yarış durumu yaşamamanızın sebebi bu.</p>
+        </div>
+        <figure>
+          <div class="shot"><b>docker compose ps çıktısı</b><span>images/01-docker-up.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+      </section>
+
+      <section id="b4">
+        <h2><span class="n">04</span><span>İlk Denemeler: Route, Rate Limiting ve Key Auth</span></h2>
+        <p>Kavramları gerçek bir servisle boğuşmadan önce <code>httpbin</code> üzerinde deneyelim. Önce bir Service, sonra onun üzerine üç farklı Route:</p>
+        <div class="codeblock" data-lang="bash"><pre><code># Service: arka taraftaki gerçek adres
+curl -X POST localhost:8001/services \
+  --data name=httpbin-service \
+  --data url=http://httpbin:8080
+
+# Route 1: düz proxy, plugin yok
+curl -X POST localhost:8001/services/httpbin-service/routes \
+  --data name=demo-route --data 'paths[]=/demo'</code></pre></div>
+        <p>Artık <code>/demo</code> altına attığınız her şey httpbin'e gidiyor:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -s localhost:8000/demo/get | jq</code></pre></div>
+        <figure>
+          <div class="shot"><b>Düz proxy: /demo/get httpbin'e gidiyor</b><span>images/02-demo-proxy.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Yanıtın header'larına bakın — Kong kendini belli ediyor:</p>
+        <div class="codeblock" data-lang="http"><pre><code>HTTP/1.1 200 OK
+Via: kong/3.9.4
+X-Kong-Upstream-Latency: 3
+X-Kong-Proxy-Latency: 1</code></pre></div>
+        <figure>
+          <div class="shot"><b>Kong'un yanıta eklediği Via ve latency header'ları</b><span>images/03-kong-headers.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p><code>X-Kong-Upstream-Latency</code> arkadaki servisin kaç ms'de cevap verdiğini, <code>X-Kong-Proxy-Latency</code> ise Kong'un kendi karar süresini söyler. Bu iki header yazının 7. bölümünde işimize yarayacak.</p>
+
+        <h3>Rate limiting</h3>
+        <p>İkinci route'a dakikada 5 istek sınırı koyalım:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/services/httpbin-service/routes \
+  --data name=limited-route --data 'paths[]=/limited'
+
+curl -X POST localhost:8001/routes/limited-route/plugins \
+  --data name=rate-limiting \
+  --data config.minute=5 \
+  --data config.policy=local</code></pre></div>
+        <p>Sınırı patlatmak için yedi istek atın:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>for i in $(seq 1 7); do
+  curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/limited/get
+done</code></pre></div>
+        <div class="codeblock" data-lang="çıktı"><pre><code>200
+200
+200
+200
+200
+429
+429</code></pre></div>
+        <figure>
+          <div class="shot"><b>Rate limit: 6. istekten itibaren 429</b><span>images/04-rate-limit-429.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>6. istekten itibaren <code>429 Too Many Requests</code>. Burada önemli olan şu: bu 429'ları <strong>Kong üretti</strong>, httpbin bu iki isteği hiç görmedi.</p>
+        <p><code>config.policy=local</code> sayacı Kong node'unun kendi belleğinde tutar. Tek node'lu lokal kurulumda doğru seçim, ama birden fazla Kong node'u varsa her node kendi sayacını tutacağı için gerçek limit <code>node sayısı × 5</code> olur. Üretimde <code>cluster</code> veya <code>redis</code> politikası kullanılır.</p>
+
+        <h3>Key auth</h3>
+        <p>Üçüncü route'u API anahtarıyla koruyalım:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/services/httpbin-service/routes \
+  --data name=secure-route --data 'paths[]=/secure'
+
+curl -X POST localhost:8001/routes/secure-route/plugins --data name=key-auth
+
+# Anahtarın sahibi bir Consumer olmalı
+curl -X POST localhost:8001/consumers --data username=emre
+curl -X POST localhost:8001/consumers/emre/key-auth --data key=gizli-anahtar-123</code></pre></div>
+        <p>Test:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -i localhost:8000/secure/get
+# HTTP/1.1 401 Unauthorized
+# {"message":"No API key found in request"}
+
+curl -i -H 'apikey: gizli-anahtar-123' localhost:8000/secure/get
+# HTTP/1.1 200 OK</code></pre></div>
+        <figure>
+          <div class="shot"><b>key-auth: anahtarsız 401, anahtarlı 200</b><span>images/05-key-auth.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <div class="note">
+          <span class="lbl">Önemli nokta</span>
+          <p>httpbin'in kodunda tek satır kimlik doğrulama yok. Anahtar kontrolü tamamen kapıda yapıldı ve backend sadece geçen isteği gördü. Gateway'in asıl değeri bu: güvenlik kodu, korumak istediğiniz servisin içinde yaşamıyor.</p>
+        </div>
+      </section>
+
+      <section id="b5">
+        <h2><span class="n">05</span><span>Gerçekçi Senaryo: Portu Olmayan İki .NET Servisi</span></h2>
+        <p>httpbin eğlenceli ama gerçek hayatta elinizde kendi servisleriniz var. İki minimal API yazdım: <code>products-api</code> ve <code>orders-api</code>.</p>
+        <p><code>products-api</code> dört endpoint içeriyor ve bunların yalnızca <strong>biri</strong> dışarı açılacak:</p>
+        <div class="codeblock" data-lang="Program.cs — products-api"><pre><code>var products = new List&lt;Product&gt;
+{
+    new(1, "Klavye",   1250.00m, 42),
+    new(2, "Mouse",     680.50m, 17),
+    new(3, "Monitor",  8900.00m,  5),
+    new(4, "Kulaklik", 2300.00m,  0),
+};
+
+// --- 1) PUBLIC: ürün listesi. Kong üzerinden dışarıya açılan TEK endpoint bu. ---
+app.MapGet("/products", () =&gt;
+    Results.Ok(products.Select(p =&gt; new { p.Id, p.Name, p.Price })));
+
+// --- 2) INTERNAL: tek ürün detayı (stok bilgisi dahil) ---
+app.MapGet("/products/{id:int}", (int id) =&gt; /* ... */);
+
+// --- 3) INTERNAL: iş metrikleri. Dışarıya asla açılmamalı. ---
+app.MapGet("/internal/stats", () =&gt; Results.Ok(new
+{
+    totalProducts  = products.Count,
+    outOfStock     = products.Count(p =&gt; p.Stock == 0),
+    inventoryValue = products.Sum(p =&gt; p.Price * p.Stock),
+    secret = "bu-veri-disariya-cikmamali"
+}));
+
+app.MapGet("/health", () =&gt; Results.Ok(new { status = "healthy" }));</code></pre></div>
+        <p>Endpoint'lerin niyeti:</p>
+        <div class="tbl">
+          <table>
+            <caption>products-api endpoint'leri</caption>
+            <thead><tr><th>Endpoint</th><th>Durum</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">GET /products</td><td><span class="tag-pub">public</span> Kong üzerinden dışarıya açıldı</td></tr>
+              <tr><td class="mono">GET /products/{id}</td><td><span class="tag-int">internal</span> stok bilgisi içeriyor</td></tr>
+              <tr><td class="mono">GET /internal/stats</td><td><span class="tag-int">internal</span> ciro/stok verisi, dışarıya çıkmamalı</td></tr>
+              <tr><td class="mono">GET /health</td><td><span class="tag-int">internal</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>orders-api</code> ise sipariş oluştururken <code>products-api</code>'yi çağırıyor — ama dikkat edin, <strong>gateway'e uğramadan</strong>:</p>
+        <div class="codeblock" data-lang="Program.cs — orders-api"><pre><code>// products-api'ye doğrudan (Kong'dan GEÇMEDEN) gidecek client.
+// Servisler arası trafik iç ağ üzerinden, gateway'e uğramadan akar.
+builder.Services.AddHttpClient("products", client =&gt;
+{
+    var baseUrl = builder.Configuration["PRODUCTS_API_URL"] ?? "http://products-api:8080";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
+});</code></pre></div>
+        <p>Bu bilinçli bir tercih. Kong <strong>kuzey-güney</strong> trafiği (dışarıdan içeriye) için duruyor; servisler arası <strong>doğu-batı</strong> trafiğini gateway'den geçirmek gereksiz bir atlama (hop) ve gereksiz bir arıza noktası ekler. Servis-servis iletişimini yönetmek istiyorsanız o işin aracı service mesh'tir, API gateway değil.</p>
+
+        <h3>Kritik compose detayı</h3>
+        <p>Her iki servisin compose tanımında <strong><code>ports:</code> yok</strong>:</p>
+        <div class="codeblock" data-lang="docker-compose.yml"><pre><code>  products-api:
+    build: ./services/products-api
+    expose:
+      - "8080"        # sadece Docker iç ağında görünür
+
+  orders-api:
+    build: ./services/orders-api
+    environment:
+      PRODUCTS_API_URL: http://products-api:8080
+    expose:
+      - "8080"</code></pre></div>
+        <p><code>expose</code>, portu yalnızca Docker iç ağına açar; <code>ports</code> ise host'a yayınlar. Yani kendi makinenizden <code>localhost:8080/internal/stats</code> diye bu servise ulaşamazsınız — <strong>dışarıya tek kapı Kong (8000)</strong>. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.</p>
+        <figure>
+          <div class="shot"><b>Host'tan doğrudan erişim yok: connection refused</b><span>images/06-host-erisim-yok.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Servisleri iç ağdan görmek isterseniz aynı ağa geçici bir container atmanız gerekir:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>docker run --rm --network kong-test_default curlimages/curl \
+  -s http://products-api:8080/internal/stats</code></pre></div>
+        <div class="codeblock" data-lang="json"><pre><code>{"totalProducts":4,"outOfStock":1,"inventoryValue":126860.00,"secret":"bu-veri-disariya-cikmamali"}</code></pre></div>
+        <figure>
+          <div class="shot"><b>Aynı veri iç ağdan görünüyor: /internal/stats</b><span>images/07-ic-agdan-stats.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Veri orada, çalışıyor. Şimdi bunun dışarıya <strong>çıkmadığını</strong> garanti etmemiz gerekiyor.</p>
+      </section>
+
+      <section id="b6">
+        <h2><span class="n">06</span><span>Tek Endpoint'i Dışa Açmak: Regex, <code>$</code> ve <code>methods</code></span></h2>
+        <p>Konfigürasyon iki çağrıdan ibaret:</p>
+        <div class="codeblock" data-lang="bash"><pre><code># Service: upstream adresi + path
+curl -X POST localhost:8001/services \
+  --data name=products-service \
+  --data url=http://products-api:8080/products
+
+# Route: SADECE GET, ve path TAM OLARAK /api/products
+curl -X POST localhost:8001/services/products-service/routes \
+  --data name=public-products \
+  --data 'paths[]=~/api/products$' \
+  --data 'methods[]=GET' \
+  --data strip_path=true</code></pre></div>
+        <figure>
+          <div class="shot"><b>Service + Route oluşturulurken Admin API yanıtı</b><span>images/08-route-olustur.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <div class="note">
+          <span class="lbl">Kritik detay</span>
+          <p><code>paths</code> değerinin başındaki <code>~</code> bunun bir regex olduğunu, sonundaki <code>$</code> ise tam eşleşme gerektiğini söyler.</p>
+          <p>Bunu yazmazsanız — yani <code>paths[]=/api/products</code> deseniz — Kong <strong>prefix</strong> eşleştirir. O zaman <code>/api/products/3</code>, <code>/api/products/internal/stats</code> gibi altındaki her şey de açılır. Tek bir endpoint açacaksanız <code>$</code> pazarlık konusu değil.</p>
+        </div>
+        <p><code>methods[]=GET</code> aynı mantığın method tarafı: POST/PUT/DELETE istekleri bu route'a hiç eşleşmez, dolayısıyla hiçbir servise gitmez.</p>
+        <p><code>strip_path=true</code> ise path'in eşleşen kısmını keser. Zinciri takip edelim: <code>/api/products</code> isteği gelir, eşleşen kısım kesilir (geriye boş string kalır), Service'in kendi <code>path</code>'i olan <code>/products</code> eklenir ve upstream'e <code>GET /products</code> gider. .NET tarafındaki endpoint <code>/products</code> olduğu için tam oturur. Yani dışarıdaki URL ile içerideki URL birbirinden tamamen bağımsız — bu da gateway'in hoş bir yan faydası.</p>
+        <h3>Doğrulanmış davranış</h3>
+        <div class="codeblock" data-lang="çıktı"><pre><code>GET  /api/products        -> 200  (ürün listesi döner)
+GET  /api/products/3      -> 404  (route yok, servise hiç gitmez)
+GET  /api/internal/stats  -> 404
+GET  /api/orders          -> 404
+POST /api/products        -> 404  (method eşleşmedi)</code></pre></div>
+        <figure>
+          <div class="shot"><b>Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi</b><span>images/09-dogrulanmis-404.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Bu 404'lerin önemi şu: istek .NET servisine <strong>hiç ulaşmıyor</strong>. Servis bu isteklerden haberdar bile değil, Kong kapıda çevirdi.</p>
+        <p>Ama “haberdar değil” iddialı bir cümle. Kanıtlayalım.</p>
+      </section>
+
+      <section id="b7">
+        <h2><span class="n">07</span><span>“Kong Kapıda Çevirdi”yi Kanıtlamak</span></h2>
+        <p>Engellenen bir isteğin arkaya gitmediğini üç ayrı yerden gözlemleyebilirsiniz.</p>
+
+        <h3>Yöntem 1: Canlı karar akışı</h3>
+        <p>Kong'un her istek için verdiği kararı JSON olarak yazdırması için global bir <code>file-log</code> plugin'i ekliyoruz:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/plugins \
+  --data name=file-log \
+  --data config.path=/dev/stdout \
+  --data config.reopen=true</code></pre></div>
+        <p>Bu plugin'in ham çıktısı epey kalabalık, ama işimize yarayan dört alan var:</p>
+        <div class="tbl">
+          <table>
+            <caption>file-log çıktısında kritik alanlar</caption>
+            <thead><tr><th>Alan</th><th>İzinli istek</th><th>Engellenen istek</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">route</td><td class="mono yes">public-products</td><td class="mono no">null</td></tr>
+              <tr><td class="mono">service</td><td class="mono yes">products-service</td><td class="mono no">null</td></tr>
+              <tr><td class="mono">upstream_uri</td><td class="mono yes">/products</td><td class="mono no">""</td></tr>
+              <tr><td class="mono">latencies.proxy</td><td class="mono yes">4 (ms)</td><td class="mono no">-1</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>latencies.proxy = -1</code> tam olarak “arkaya hiç gitmedik” demek. Ölçülecek bir upstream süresi yok, çünkü upstream'e çıkılmadı.</p>
+        <p>Bu alanları okunur hale getirmek için küçük bir script yazdım (<code>izle.sh</code>):</p>
+        <div class="codeblock" data-lang="izle.sh"><pre><code>docker compose logs -f --tail 0 kong 2&gt;&amp;1 | python3 -u -c '
+import sys, json, re
+for raw in sys.stdin:
+    m = re.search(r"\{.*\}", raw)
+    if not m: continue
+    try: d = json.loads(m.group(0))
+    except Exception: continue
+    req = d.get("request") or {}
+    if "uri" not in req: continue
+    status = (d.get("response") or {}).get("status")
+    route  = (d.get("route") or {}).get("name")
+    svc    = (d.get("service") or {}).get("name")
+    up     = d.get("upstream_uri") or ""
+    lat    = (d.get("latencies") or {}).get("proxy", -1)
+    head   = "{:&lt;4} {:&lt;5} {:&lt;28}".format(status, req.get("method",""), req.get("uri",""))
+    if route:
+        print(head + " -&gt; GECTI    {}{}  [route={}, upstream {}ms]".format(svc, up, route, lat))
+    else:
+        print(head + " -&gt; CEVRILDI  eslesen route yok, hicbir servise gitmedi")
+'</code></pre></div>
+        <p>Script'i ayrı bir terminalde bırakıp başka bir terminalden istek atın:</p>
+        <div class="codeblock" data-lang="çıktı"><pre><code>200  GET   /api/products       -> GECTI    products-service/products  [route=public-products, upstream 4ms]
+404  GET   /api/products/3     -> CEVRILDI  eslesen route yok, hicbir servise gitmedi
+404  GET   /api/internal/stats -> CEVRILDI  eslesen route yok, hicbir servise gitmedi
+404  POST  /api/products       -> CEVRILDI  eslesen route yok, hicbir servise gitmedi</code></pre></div>
+        <figure>
+          <div class="shot"><b>izle.sh canlı karar akışı</b><span>images/10-izle-akis.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+
+        <h3>Yöntem 2: İki tarafın loglarını saymak</h3>
+        <p>Daha da ikna edici olan yöntem: aynı anda iki servisin logunu izleyip istek sayılarını karşılaştırmak.</p>
+        <div class="codeblock" data-lang="bash"><pre><code>docker compose logs -f kong products-api</code></pre></div>
+        <p>Beş istek atın — biri izinli, dördü engelli — ve sayıları karşılaştırın:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>docker compose logs kong --tail 200 | grep -cE '"(GET|POST) /api'   # -> 5
+docker compose logs products-api | grep -c 'Request starting'       # -> 1</code></pre></div>
+        <p>Kong beş istek gördü, .NET servisi bir. Aradaki dört istek servise hiç varmadı — ASP.NET Core'un <code>Request starting</code> satırı bile oluşmadı. Bu, “servis isteği gördü ama 404 döndü” senaryosunu tamamen eler.</p>
+        <figure>
+          <div class="shot"><b>Kong 5 istek gördü, products-api 1</b><span>images/11-log-karsilastirma.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+
+        <h3>Yöntem 3: Yanıt header'ları</h3>
+        <p>En hızlı ipucu ise tek bir header'da:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -i localhost:8000/api/products        # izinli
+curl -i localhost:8000/api/internal/stats  # engelli</code></pre></div>
+        <div class="tbl">
+          <table>
+            <caption>Kim cevapladı?</caption>
+            <thead><tr><th>Header</th><th>İzinli</th><th>Engellenen</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">Server</td><td class="mono yes">Kestrel</td><td class="mono no">kong/3.9.4</td></tr>
+              <tr><td class="mono">X-Kong-Upstream-Latency</td><td class="yes">var</td><td class="no">yok</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <div class="shot"><b>Server header'ı: Kestrel mi, kong mu cevapladı?</b><span>images/12-server-header.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p><code>Server: Kestrel</code> görüyorsanız istek arkaya gitti. <code>Server: kong/...</code> görüyorsanız kapıda çevrildi. <code>X-Kong-Upstream-Latency</code> header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.</p>
+        <p>Bir 404 ile karşılaştığınızda “bu benim servisimin 404'ü mü, gateway'in 404'ü mü?” sorusunu bu header saniyeler içinde cevaplar. Hata ayıklarken en çok işinize yarayacak bilgi muhtemelen bu olacak.</p>
+      </section>
+
+      <section id="b8">
+        <h2><span class="n">08</span><span>Konfigürasyon Nerede Yaşıyor?</span></h2>
+        <p>Burada durup şunu netleştirmek gerekiyor, çünkü alışkanlıklarımıza ters: <code>/api/products</code>'ın açık olduğu bilgisi <strong>.NET kodunda değil</strong>.</p>
+        <p><code>products-api</code> hangi endpoint'inin dışa açık olduğunu bilmiyor. <code>docker-compose.yml</code>'de de değil. Ayar Kong'un <strong>Postgres veritabanında</strong> (<code>routes</code> ve <code>services</code> tabloları) duruyor; oraya Admin API üzerinden <code>curl</code> ile yazdık.</p>
+        <p>Aynı veriye bakan üç arayüz var:</p>
+        <div class="tbl">
+          <table>
+            <caption>Aynı veriye bakan üç arayüz</caption>
+            <thead><tr><th>Yer</th><th>Nasıl</th></tr></thead>
+            <tbody>
+              <tr><td>Admin API</td><td class="mono">curl localhost:8001/routes/public-products</td></tr>
+              <tr><td>Kong Manager</td><td>localhost:8002 → Routes → public-products → Edit</td></tr>
+              <tr><td>Veritabanı</td><td>DBeaver (localhost:5433) → <code>routes</code> tablosu (sadece OKU)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <div class="shot"><b>Kong Manager route ekranı</b><span>images/13-kong-manager-route.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Açık endpoint'i belirleyen sadece iki alan:</p>
+        <div class="flow">paths   = ~/api/products$    &lt;- hangi path (regex, $ = tam eşleşme)
+methods = GET                &lt;- hangi method</div>
+        <p>Bunları değiştirirseniz dışarıya açık olan endpoint değişir. Deploy yok, build yok:</p>
+        <div class="codeblock" data-lang="bash"><pre><code># Sadece path'i değiştir
+curl -X PATCH localhost:8001/routes/public-products \
+  --data 'paths[]=~/api/v2/urunler$'
+
+# Method ekle
+curl -X PATCH localhost:8001/routes/public-products \
+  --data 'methods[]=GET' --data 'methods[]=HEAD'</code></pre></div>
+        <div class="note">
+          <span class="lbl">Not</span>
+          <p>Değişiklik birkaç saniye içinde yayılır (<code>db_update_frequency</code>, varsayılan 5 sn). Hemen test ederseniz eski davranışı görebilirsiniz — panik yapmadan bir kez daha deneyin.</p>
+        </div>
+        <p>Bu esneklik iki tarafı keskin bir bıçak. Bir endpoint'i saniyeler içinde kapatabilmek güzel; ama kimsenin code review'undan geçmeden saniyeler içinde <strong>açılabilmesi</strong> de aynı derecede mümkün. 10. bölümde buna döneceğiz.</p>
+      </section>
+
+      <section id="b9">
+        <h2><span class="n">09</span><span>Postgres'e Bakmak — ve Oraya Yazmamak</span></h2>
+        <p>Konfigürasyon Postgres'te olduğuna göre, oraya doğrudan bakmak öğretici. Compose'da DB'yi 5433'ten host'a açmıştık (host'ta zaten 5432'de başka bir Postgres olduğu için).</p>
+        <p>DBeaver bağlantı bilgileri:</p>
+        <div class="kv">
+          <div><b>Driver</b><span>PostgreSQL</span></div>
+          <div><b>Host</b><span>localhost</span></div>
+          <div><b>Port</b><span>5433</span></div>
+          <div><b>Database</b><span>kong</span></div>
+          <div><b>Username</b><span>kong</span></div>
+          <div><b>Password</b><span>kongpass</span></div>
+        </div>
+        <p>Terminalden de bakabilirsiniz:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>docker compose exec kong-db psql -U kong -d kong</code></pre></div>
+        <p>İlginç tablolar:</p>
+        <div class="tbl">
+          <table>
+            <caption>Kong şemasında bakmaya değer tablolar</caption>
+            <thead><tr><th>Tablo</th><th>İçerik</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">services</td><td>upstream tanımları</td></tr>
+              <tr><td class="mono">routes</td><td>eşleşme kuralları (<code>paths</code>, <code>methods</code>, <code>hosts</code>)</td></tr>
+              <tr><td class="mono">plugins</td><td>hangi plugin nerede açık, <code>config</code> kolonu JSONB</td></tr>
+              <tr><td class="mono">consumers</td><td>API tüketicileri</td></tr>
+              <tr><td class="mono">keyauth_credentials</td><td>API anahtarları (<strong>düz metin</strong>, hash'li değil)</td></tr>
+              <tr><td class="mono">ratelimiting_metrics</td><td>rate limit sayaçları (policy=cluster/redis ise dolar)</td></tr>
+              <tr><td class="mono">targets / upstreams</td><td>load balancer havuzları</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Route'ları ve bağlı oldukları servisleri tek sorguda görmek için:</p>
+        <div class="codeblock" data-lang="sql"><pre><code>select r.name as route, r.paths, r.methods,
+       s.name as service, s.host, s.path
+from routes r
+join services s on r.service_id = s.id;</code></pre></div>
+        <figure>
+          <div class="shot"><b>DBeaver'da routes tablosu: paths ve methods kolonları</b><span>images/14-dbeaver-routes.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p><code>keyauth_credentials</code> tablosundaki satıra bakmanızı özellikle öneririm: <code>gizli-anahtar-123</code> orada <strong>düz metin</strong> olarak duruyor. API anahtarları Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için anahtarın kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.</p>
+        <div class="note warn">
+          <span class="lbl">Uyarı: buraya yazmayın</span>
+          <p>Kong konfigürasyonu <strong>node başlarken belleğe yüklenir</strong> ve DB değişiklikleri otomatik yayılmaz. SQL ile <code>insert</code>/<code>update</code> yaparsanız Kong bunu görmeyebilir veya tutarsız bir duruma düşer (örneğin plugin'in <code>config</code> JSONB'sini şema doğrulamasından geçirmeden yazdınız).</p>
+          <p>Kural basit: <strong>okumak için serbest, değiştirmek için Admin API (8001) veya Kong Manager (8002).</strong></p>
+        </div>
+      </section>
+
+      <section id="b10">
+        <h2><span class="n">10</span><span>Konfigürasyon Hiçbir Dosyada Yok: decK ile Declarative Config</span></h2>
+        <p>Şimdi bu kurulumun en rahatsız edici tarafına gelelim.</p>
+        <p><code>docker compose down -v</code> derseniz volume ile birlikte <strong>tüm route / service / plugin / consumer tanımları silinir</strong> ve hepsini baştan <code>curl</code>'lemeniz gerekir. Üstelik:</p>
+        <ul>
+          <li>Konfigürasyon git'te değil.</li>
+          <li>Code review'dan geçmiyor.</li>
+          <li>İki ortam arasındaki farkı göremiyorsunuz.</li>
+          <li>“Bu route'u kim, ne zaman, neden ekledi?” sorusunun cevabı yok.</li>
+        </ul>
+        <p>Yani altyapınızın güvenlik sınırını belirleyen ayar, versiyonlanmayan bir yerde yaşıyor. Kabul edilebilir bir durum değil.</p>
+        <p>Çözüm Kong'un resmî CLI'ı <strong>decK</strong>. Konfigürasyonu YAML'a döküyor ve geri yükleyebiliyor:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>D="docker run --rm --network kong-test_default -v $PWD:/work -w /work kong/deck:latest"
+
+# Mevcut konfigi dosyaya dök
+$D gateway dump --kong-addr http://kong:8001 -o kong.yaml
+
+# Dosya ile Kong arasındaki farkı gör (uygulamadan ÖNCE)
+$D gateway diff --kong-addr http://kong:8001 kong.yaml
+
+# Dosyayı uygula (Kong'u dosyadaki hale getirir)
+$D gateway sync --kong-addr http://kong:8001 kong.yaml</code></pre></div>
+        <figure>
+          <div class="shot"><b>deck gateway diff: uygulamadan önce farkı görmek</b><span>images/15-deck-diff.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Çıkan <code>kong.yaml</code> artık okunabilir, versiyonlanabilir bir dosya:</p>
+        <div class="codeblock" data-lang="kong.yaml"><pre><code>_format_version: "3.0"
+services:
+- name: products-service
+  host: products-api
+  port: 8080
+  path: /products
+  protocol: http
+  routes:
+  - name: public-products
+    paths:
+    - ~/api/products$
+    methods:
+    - GET
+    strip_path: true</code></pre></div>
+        <p>Buradaki kazanç sadece yedek almak değil. <code>deck gateway diff</code> komutu bir <strong>pull request'te</strong> çalıştırılabilir: “bu değişiklik <code>/api/internal/stats</code>'ı dışarıya açıyor” bilgisini merge'den önce görebilirsiniz. Gateway konfigürasyonu, kod kadar gözden geçirilmeye değer bir şey — çünkü hangi verinin dışarı çıktığına karar veren o.</p>
+        <p>Sıfırdan kurulumda artık iki komut yeterli:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>docker compose up -d
+$D gateway sync --kong-addr http://kong:8001 kong.yaml</code></pre></div>
+        <div class="note warn">
+          <span class="lbl">Dikkat</span>
+          <p><code>dump</code> çıktısı consumer'ları ve anahtarlarını da içeriyor — yani <code>kong.yaml</code> içinde <code>gizli-anahtar-123</code> düz metin olarak duruyor. Gerçek projede API anahtarları bu dosyaya girmemeli; decK'in <code>--skip-consumers</code> flag'i veya env var / vault referansları kullanılır. Yoksa git geçmişinize kalıcı olarak bir sır yazmış olursunuz.</p>
+        </div>
+      </section>
+
+      <section id="b11">
+        <h2><span class="n">11</span><span>Public Endpoint'i Sağlamlaştırmak</span></h2>
+        <p>Bir endpoint'i dışarı açtıysanız iş bitmedi; artık internetin tamamı onu çağırabilir. Üç plugin'le hızlıca sağlamlaştıralım:</p>
+        <div class="codeblock" data-lang="bash"><pre><code># Public olan her şey limitlenmeli
+curl -X POST localhost:8001/routes/public-products/plugins \
+  --data name=rate-limiting \
+  --data config.minute=60 \
+  --data config.policy=local
+
+# Tarayıcıdan çağrılacaksa CORS
+curl -X POST localhost:8001/routes/public-products/plugins --data name=cors
+
+# Aynı liste tekrar tekrar üretilmesin
+curl -X POST localhost:8001/routes/public-products/plugins \
+  --data name=proxy-cache \
+  --data config.strategy=memory \
+  --data 'config.content_type=application/json'</code></pre></div>
+        <p>Üçünün ortak noktası: hiçbiri .NET kodunu değiştirmiyor. <code>proxy-cache</code> özellikle öğretici — ikinci isteğe Kong'un belleğinden cevap verilir, <code>products-api</code> o isteği hiç görmez. Yanıttaki <code>X-Cache-Status: Hit</code> header'ı bunu doğrular.</p>
+        <p>Kurulabilen tüm plugin'lerin listesini merak ederseniz:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -s localhost:8001/ | jq -r '.plugins.available_on_server | keys[]'</code></pre></div>
+        <p>Son olarak gözlemlenebilirlik için global bir Prometheus plugin'i:</p>
+        <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/plugins --data name=prometheus</code></pre></div>
+        <figure>
+          <div class="shot"><b>Prometheus plugin'i: route bazında metrikler</b><span>images/16-prometheus-metrics.png</span></div>
+          <figcaption>Ekran görüntüsü eklenecek.</figcaption>
+        </figure>
+        <p>Artık <code>localhost:8001/metrics</code> adresinde route bazında istek sayıları, status kodu dağılımı ve gecikme histogramları var — her servise ayrı ayrı metrik kodu yazmadan.</p>
+      </section>
+
+      <section id="b12">
+        <h2><span class="n">12</span><span>Üretim İçin Dikkat Edilmesi Gerekenler</span></h2>
+        <p>Bu kurulum lokal deneme için tasarlandı. Üretime taşımadan önce en az şu dört maddeye bakmak gerekiyor:</p>
+        <div class="note warn">
+          <span class="lbl">1 · Admin API asla public olmaz</span>
+          <p>Bizim kurulumda 8001 kimlik doğrulamasız ve host'a açık — yani o porta erişen herkes istediği route'u açabilir, istediği plugin'i kaldırabilir. Üretimde Admin API ya sadece <code>127.0.0.1</code>'e bind edilir, ya ayrı bir ağda tutulur, ya da RBAC'li Kong Enterprise kullanılır.</p>
+        </div>
+        <div class="note warn">
+          <span class="lbl">2 · API anahtarları düz metin</span>
+          <p>Hem DB'de hem <code>kong.yaml</code>'da. <code>key-auth</code> hızlı prototip için iyi; gerçek senaryoda JWT veya OAuth2 plugin'leri daha uygun olur.</p>
+        </div>
+        <div class="note">
+          <span class="lbl">3 · DB-less modunu değerlendirin</span>
+          <p>Kong'u <code>declarative_config</code> ile Postgres olmadan da çalıştırabilirsiniz; konfigürasyon doğrudan <code>kong.yaml</code>'dan okunur. Böylece “konfigürasyon git'te değil” problemi kökten çözülür ve çalışma zamanında kimse Admin API'den değişiklik yapamaz. Bedeli: consumer/credential yönetimini runtime'da yapamamanız.</p>
+        </div>
+        <div class="note">
+          <span class="lbl">4 · rate-limiting politikası</span>
+          <p><code>local</code> politikası node başına sayar. Birden fazla node'a çıkacaksanız <code>redis</code> veya <code>cluster</code> politikasına geçin, yoksa koyduğunuzu sandığınız limit node sayısıyla çarpılır.</p>
+        </div>
+      </section>
+
+      <section id="b13">
+        <h2><span class="n">13</span><span>Sonuç ve İleri Adımlar</span></h2>
+        <p>Bu yazıda:</p>
+        <ul>
+          <li>API Gateway'in neden her servise tek tek yazdığımız ortak işleri topladığını,</li>
+          <li>Kong'un dört temel kavramını (Service / Route / Plugin / Consumer) ve “route eşleşmezse zincir biter” kuralını,</li>
+          <li>Docker ile Kong Gateway OSS + Postgres kurulumunu,</li>
+          <li><code>rate-limiting</code>, <code>key-auth</code>, <code>cors</code>, <code>proxy-cache</code>, <code>file-log</code>, <code>prometheus</code> plugin'lerini kod değiştirmeden eklemeyi,</li>
+          <li>Host'a hiç port açmayan iki .NET servisinin tek bir endpoint'ini <code>~/api/products$</code> regex'i ve <code>methods=GET</code> ile dışarıya açmayı,</li>
+          <li>Engellenen isteklerin servise hiç ulaşmadığını üç ayrı yöntemle kanıtlamayı,</li>
+          <li>Konfigürasyonun Postgres'te yaşadığını, oraya neden yazmamak gerektiğini ve decK ile git'e nasıl taşındığını</li>
+        </ul>
+        <p>gördük. Kazancı tek cümlede toplamak gerekirse:</p>
+        <p class="pull"><code>products-api</code>'nin kodunda hangi endpoint'inin dışarı açık olduğuna dair tek satır yok — o karar artık versiyonlanabilir bir konfigürasyon dosyasında yaşıyor.</p>
+        <p>Buradan ilerleyebileceğiniz konular:</p>
+        <ul>
+          <li><strong>Upstream &amp; health check:</strong> Birden fazla <code>products-api</code> replikası tanımlayıp Kong'un ölen node'u devre dışı bırakmasını izlemek.</li>
+          <li><strong>JWT / OAuth2 plugin'leri:</strong> <code>key-auth</code> yerine gerçek bir kimlik sağlayıcıyla entegrasyon.</li>
+          <li><strong>request-transformer:</strong> Backend'in beklediği header'ları kapıda eklemek, istemciden gelen tehlikeli header'ları silmek.</li>
+          <li><strong>DB-less + CI/CD:</strong> <code>kong.yaml</code>'ı git'te tutup pipeline'da <code>deck gateway diff</code> ile gözden geçirip <code>sync</code> ile uygulamak.</li>
+          <li><strong>Kong Ingress Controller:</strong> Aynı mantığı Kubernetes'te CRD'lerle yönetmek.</li>
+          <li><strong>OpenTelemetry:</strong> Gateway'den başlayan trace'i .NET servislerine kadar uçtan uca takip etmek.</li>
+        </ul>
+      </section>
+    </article>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap" lang="tr">
+    <div class="inner">
+      <h2><span class="n">★</span><span>Proje yapısı</span></h2>
+      <div class="codeblock" data-lang="kong-test/"><pre><code>kong-test/
+├─ makale.md                  # bu yazı
+├─ NOTLAR.md                  # deneme notları + komut cheatsheet
+├─ docker-compose.yml         # Kong + Postgres + migrations + httpbin + .NET servisleri
+├─ kong.yaml                  # decK dump'ı (declarative config)
+├─ izle.sh                    # Kong'un karar akışını canlı gösteren script
+└─ services/
+   ├─ products-api/           # .NET 9 minimal API (1 public, 3 internal endpoint)
+   │  ├─ Program.cs
+   │  └─ Dockerfile
+   └─ orders-api/             # .NET 9 minimal API (tamamı internal)
+      ├─ Program.cs
+      └─ Dockerfile</code></pre></div>
+      <a class="repo" href="https://github.com/emreozgoz/kong-makale"><b>Github reposu</b>github.com/emreozgoz/kong-makale</a>
+      <p class="sign">Herhangi bir eksik, yanlış vb. durumlar hakkında düzeltme yapmak için <a href="https://www.linkedin.com/in/emreozgoz/">Linkedin</a> üzerinden benimle iletişime geçebilirsiniz.</p>
+      <p class="sign">Diğer yazılarda görüşmek üzere, hoşçakalın :)</p>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

@@ -5,6 +5,7 @@ API'nin yalnızca bir endpoint'i Kong üzerinden dışarıya açılıyor; engell
 .NET servisine hiç ulaşmadığı üç ayrı yöntemle gözlemleniyor.
 
 Makalenin tamamı: [makale.md](makale.md)
+Web sürümü: **https://emreozgoz.github.io/kong-makale/**
 
 ## Hızlı başlangıç
 
