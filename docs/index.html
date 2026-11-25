@@ -500,7 +500,7 @@ footer h2{font-size:var(--step-2)}
           <p><code>kong-migrations</code> container'ı <code>service_completed_successfully</code> koşuluyla bekleniyor. Yani Kong, şema kurulmadan ayağa kalkmaya çalışmıyor — ilk <code>up</code> komutunda yarış durumu yaşamamanızın sebebi bu.</p>
         </div>
         <figure>
-          <img src="images/01-docker-up.png" alt="docker compose ps çıktısı" loading="lazy">
+          <img src="images/01-docker-up.png" alt="docker compose ps çıktısı">
           <figcaption>docker compose ps çıktısı</figcaption>
         </figure>
       </section>
@@ -519,7 +519,7 @@ curl -X POST localhost:8001/services/httpbin-service/routes \
         <p>Artık <code>/demo</code> altına attığınız her şey httpbin'e gidiyor:</p>
         <div class="codeblock" data-lang="bash"><pre><code>curl -s localhost:8000/demo/get | jq</code></pre></div>
         <figure>
-          <img src="images/02-demo-proxy.png" alt="Düz proxy: /demo/get httpbin'e gidiyor" loading="lazy">
+          <img src="images/02-demo-proxy.png" alt="Düz proxy: /demo/get httpbin'e gidiyor">
           <figcaption>Düz proxy: /demo/get httpbin'e gidiyor</figcaption>
         </figure>
         <p>Yanıtın header'larına bakın — Kong kendini belli ediyor:</p>
@@ -528,7 +528,7 @@ Via: kong/3.9.4
 X-Kong-Upstream-Latency: 3
 X-Kong-Proxy-Latency: 1</code></pre></div>
         <figure>
-          <img src="images/03-kong-headers.png" alt="Kong'un yanıta eklediği Via ve latency header'ları" loading="lazy">
+          <img src="images/03-kong-headers.png" alt="Kong'un yanıta eklediği Via ve latency header'ları">
           <figcaption>Kong'un yanıta eklediği Via ve latency header'ları</figcaption>
         </figure>
         <p><code>X-Kong-Upstream-Latency</code> arkadaki servisin kaç ms'de cevap verdiğini, <code>X-Kong-Proxy-Latency</code> ise Kong'un kendi karar süresini söyler. Bu iki header yazının 7. bölümünde işimize yarayacak.</p>
@@ -554,7 +554,7 @@ done</code></pre></div>
 429
 429</code></pre></div>
         <figure>
-          <img src="images/04-rate-limit-429.png" alt="Rate limit: 6. istekten itibaren 429" loading="lazy">
+          <img src="images/04-rate-limit-429.png" alt="Rate limit: 6. istekten itibaren 429">
           <figcaption>Rate limit: 6. istekten itibaren 429</figcaption>
         </figure>
         <p>6. istekten itibaren <code>429 Too Many Requests</code>. Burada önemli olan şu: bu 429'ları <strong>Kong üretti</strong>, httpbin bu iki isteği hiç görmedi.</p>
@@ -578,7 +578,7 @@ curl -X POST localhost:8001/consumers/emre/key-auth --data key=gizli-anahtar-123
 curl -i -H 'apikey: gizli-anahtar-123' localhost:8000/secure/get
 # HTTP/1.1 200 OK</code></pre></div>
         <figure>
-          <img src="images/05-key-auth.png" alt="key-auth: anahtarsız 401, anahtarlı 200" loading="lazy">
+          <img src="images/05-key-auth.png" alt="key-auth: anahtarsız 401, anahtarlı 200">
           <figcaption>key-auth: anahtarsız 401, anahtarlı 200</figcaption>
         </figure>
         <div class="note">
@@ -655,7 +655,7 @@ builder.Services.AddHttpClient("products", client =&gt;
       - "8080"</code></pre></div>
         <p><code>expose</code>, portu yalnızca Docker iç ağına açar; <code>ports</code> ise host'a yayınlar. Yani kendi makinenizden <code>localhost:8080/internal/stats</code> diye bu servise ulaşamazsınız — <strong>dışarıya tek kapı Kong (8000)</strong>. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.</p>
         <figure>
-          <img src="images/06-host-erisim-yok.png" alt="Host'tan doğrudan erişim yok: connection refused" loading="lazy">
+          <img src="images/06-host-erisim-yok.png" alt="Host'tan doğrudan erişim yok: connection refused">
           <figcaption>Host'tan doğrudan erişim yok: connection refused</figcaption>
         </figure>
         <p>Servisleri iç ağdan görmek isterseniz aynı ağa geçici bir container atmanız gerekir:</p>
@@ -663,7 +663,7 @@ builder.Services.AddHttpClient("products", client =&gt;
   -s http://products-api:8080/internal/stats</code></pre></div>
         <div class="codeblock" data-lang="json"><pre><code>{"totalProducts":4,"outOfStock":1,"inventoryValue":108568.50,"secret":"bu-veri-disariya-cikmamali"}</code></pre></div>
         <figure>
-          <img src="images/07-ic-agdan-stats.png" alt="Aynı veri iç ağdan görünüyor: /internal/stats" loading="lazy">
+          <img src="images/07-ic-agdan-stats.png" alt="Aynı veri iç ağdan görünüyor: /internal/stats">
           <figcaption>Aynı veri iç ağdan görünüyor: /internal/stats</figcaption>
         </figure>
         <p>Veri orada, çalışıyor. Şimdi bunun dışarıya <strong>çıkmadığını</strong> garanti etmemiz gerekiyor.</p>
@@ -684,7 +684,7 @@ curl -X POST localhost:8001/services/products-service/routes \
   --data 'methods[]=GET' \
   --data strip_path=true</code></pre></div>
         <figure>
-          <img src="images/08-route-olustur.png" alt="Service + Route oluşturulurken Admin API yanıtı" loading="lazy">
+          <img src="images/08-route-olustur.png" alt="Service + Route oluşturulurken Admin API yanıtı">
           <figcaption>Service + Route oluşturulurken Admin API yanıtı</figcaption>
         </figure>
         <div class="note">
@@ -701,7 +701,7 @@ GET  /api/internal/stats  -> 404
 GET  /api/orders          -> 404
 POST /api/products        -> 404  (method eşleşmedi)</code></pre></div>
         <figure>
-          <img src="images/09-dogrulanmis-404.png" alt="Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi" loading="lazy">
+          <img src="images/09-dogrulanmis-404.png" alt="Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi">
           <figcaption>Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi</figcaption>
         </figure>
         <p>Bu 404'lerin önemi şu: istek .NET servisine <strong>hiç ulaşmıyor</strong>. Servis bu isteklerden haberdar bile değil, Kong kapıda çevirdi.</p>
@@ -759,7 +759,7 @@ for raw in sys.stdin:
 404  GET   /api/internal/stats -> CEVRILDI  eslesen route yok, hicbir servise gitmedi
 404  POST  /api/products       -> CEVRILDI  eslesen route yok, hicbir servise gitmedi</code></pre></div>
         <figure>
-          <img src="images/10-izle-akis.png" alt="izle.sh canlı karar akışı" loading="lazy">
+          <img src="images/10-izle-akis.png" alt="izle.sh canlı karar akışı">
           <figcaption>izle.sh canlı karar akışı</figcaption>
         </figure>
 
@@ -771,7 +771,7 @@ for raw in sys.stdin:
 docker compose logs products-api | grep -c 'Request starting'       # -> 1</code></pre></div>
         <p>Kong beş istek gördü, .NET servisi bir. Aradaki dört istek servise hiç varmadı — ASP.NET Core'un <code>Request starting</code> satırı bile oluşmadı. Bu, “servis isteği gördü ama 404 döndü” senaryosunu tamamen eler.</p>
         <figure>
-          <img src="images/11-log-karsilastirma.png" alt="Kong 5 istek gördü, products-api 1" loading="lazy">
+          <img src="images/11-log-karsilastirma.png" alt="Kong 5 istek gördü, products-api 1">
           <figcaption>Kong 5 istek gördü, products-api 1</figcaption>
         </figure>
 
@@ -790,7 +790,7 @@ curl -i localhost:8000/api/internal/stats  # engelli</code></pre></div>
           </table>
         </div>
         <figure>
-          <img src="images/12-server-header.png" alt="Server header'ı: Kestrel mi, kong mu cevapladı?" loading="lazy">
+          <img src="images/12-server-header.png" alt="Server header'ı: Kestrel mi, kong mu cevapladı?">
           <figcaption>Server header'ı: Kestrel mi, kong mu cevapladı?</figcaption>
         </figure>
         <p><code>Server: Kestrel</code> görüyorsanız istek arkaya gitti. <code>Server: kong/...</code> görüyorsanız kapıda çevrildi. <code>X-Kong-Upstream-Latency</code> header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.</p>
@@ -814,7 +814,7 @@ curl -i localhost:8000/api/internal/stats  # engelli</code></pre></div>
           </table>
         </div>
         <figure>
-          <img src="images/13-kong-manager-route.png" alt="Kong Manager route ekranı" loading="lazy">
+          <img src="images/13-kong-manager-route.png" alt="Kong Manager route ekranı">
           <figcaption>Kong Manager route ekranı</figcaption>
         </figure>
         <p>Açık endpoint'i belirleyen sadece iki alan:</p>
@@ -871,7 +871,7 @@ curl -X PATCH localhost:8001/routes/public-products \
 from routes r
 join services s on r.service_id = s.id;</code></pre></div>
         <figure>
-          <img src="images/14-dbeaver-routes.png" alt="DBeaver'da routes tablosu: paths ve methods kolonları" loading="lazy">
+          <img src="images/14-dbeaver-routes.png" alt="DBeaver'da routes tablosu: paths ve methods kolonları">
           <figcaption>DBeaver'da routes tablosu: paths ve methods kolonları</figcaption>
         </figure>
         <p><code>keyauth_credentials</code> tablosundaki satıra bakmanızı özellikle öneririm: <code>gizli-anahtar-123</code> orada <strong>düz metin</strong> olarak duruyor. API anahtarları Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için anahtarın kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.</p>
@@ -905,7 +905,7 @@ $D gateway diff --kong-addr http://kong:8001 kong.yaml
 # Dosyayı uygula (Kong'u dosyadaki hale getirir)
 $D gateway sync --kong-addr http://kong:8001 kong.yaml</code></pre></div>
         <figure>
-          <img src="images/15-deck-diff.png" alt="deck gateway diff: uygulamadan önce farkı görmek" loading="lazy">
+          <img src="images/15-deck-diff.png" alt="deck gateway diff: uygulamadan önce farkı görmek">
           <figcaption>deck gateway diff: uygulamadan önce farkı görmek</figcaption>
         </figure>
         <p>Çıkan <code>kong.yaml</code> artık okunabilir, versiyonlanabilir bir dosya:</p>
@@ -956,7 +956,7 @@ curl -X POST localhost:8001/routes/public-products/plugins \
         <p>Son olarak gözlemlenebilirlik için global bir Prometheus plugin'i:</p>
         <div class="codeblock" data-lang="bash"><pre><code>curl -X POST localhost:8001/plugins --data name=prometheus</code></pre></div>
         <figure>
-          <img src="images/16-prometheus-metrics.png" alt="Prometheus plugin'i: route bazında metrikler" loading="lazy">
+          <img src="images/16-prometheus-metrics.png" alt="Prometheus plugin'i: route bazında metrikler">
           <figcaption>Prometheus plugin'i: route bazında metrikler</figcaption>
         </figure>
         <p>Artık <code>localhost:8001/metrics</code> adresinde route bazında istek sayıları, status kodu dağılımı ve gecikme histogramları var — her servise ayrı ayrı metrik kodu yazmadan.</p>
