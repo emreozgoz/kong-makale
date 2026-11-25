@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Medium'a yapistirmak icin</title>
-<style>body{max-width:740px;margin:40px auto;padding:0 20px;font:16px/1.6 Georgia,serif}pre{background:#f4f4f4;padding:12px;overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,monospace}code{background:#f4f4f4;padding:1px 4px;font-family:ui-monospace,Menlo,monospace}pre code{background:none;padding:0}blockquote{border-left:3px solid #ccc;margin-left:0;padding-left:16px;color:#555}</style>
+<style>body{max-width:740px;margin:40px auto;padding:0 20px;font:16px/1.6 Georgia,serif}pre{background:#f4f4f4;padding:12px;overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,monospace}code{background:#f4f4f4;padding:1px 4px;font-family:ui-monospace,Menlo,monospace}pre code{background:none;padding:0}figure{margin:24px 0}img{max-width:100%;height:auto;border:1px solid #ddd}figcaption{font-size:13px;color:#666;margin-top:6px}blockquote{border-left:3px solid #ccc;margin-left:0;padding-left:16px;color:#555}</style>
 </head>
 <body>
 <h1>İstek Servise Hiç Ulaşmadı: Kong Gateway ile .NET Mikroservislerine Tek Kapı Açmak</h1>
@@ -113,7 +113,10 @@ POST /api/products        404  ÇEVRİLDİ</pre>
 
 <p><strong>Dikkat edilecek nokta:</strong> <code>kong-migrations</code> container'ı <code>service_completed_successfully</code> koşuluyla bekleniyor. Yani Kong, şema kurulmadan ayağa kalkmaya çalışmıyor — ilk <code>up</code> komutunda yarış durumu yaşamamanızın sebebi bu.</p>
 
-<p>[GÖRSEL 01] images/01-docker-up.png — docker compose ps çıktısı</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/01-docker-up.png" alt="docker compose ps çıktısı">
+<figcaption>docker compose ps çıktısı</figcaption>
+</figure>
 
 <h2>4. İlk Denemeler: Route, Rate Limiting ve Key Auth</h2>
 
@@ -132,7 +135,10 @@ curl -X POST localhost:8001/services/httpbin-service/routes \
 
 <pre>curl -s localhost:8000/demo/get | jq</pre>
 
-<p>[GÖRSEL 02] images/02-demo-proxy.png — Düz proxy: /demo/get httpbin'e gidiyor</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/02-demo-proxy.png" alt="Düz proxy: /demo/get httpbin'e gidiyor">
+<figcaption>Düz proxy: /demo/get httpbin'e gidiyor</figcaption>
+</figure>
 
 <p>Yanıtın header'larına bakın — Kong kendini belli ediyor:</p>
 
@@ -141,7 +147,10 @@ Via: kong/3.9.4
 X-Kong-Upstream-Latency: 3
 X-Kong-Proxy-Latency: 1</pre>
 
-<p>[GÖRSEL 03] images/03-kong-headers.png — Kong'un yanıta eklediği Via ve latency header'ları</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/03-kong-headers.png" alt="Kong'un yanıta eklediği Via ve latency header'ları">
+<figcaption>Kong'un yanıta eklediği Via ve latency header'ları</figcaption>
+</figure>
 
 <p><code>X-Kong-Upstream-Latency</code> arkadaki servisin kaç ms'de cevap verdiğini, <code>X-Kong-Proxy-Latency</code> ise Kong'un kendi karar süresini söyler. Bu iki header yazının 7. bölümünde işimize yarayacak.</p>
 
@@ -171,7 +180,10 @@ done</pre>
 429
 429</pre>
 
-<p>[GÖRSEL 04] images/04-rate-limit-429.png — Rate limit: 6. istekten itibaren 429</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/04-rate-limit-429.png" alt="Rate limit: 6. istekten itibaren 429">
+<figcaption>Rate limit: 6. istekten itibaren 429</figcaption>
+</figure>
 
 <p>6. istekten itibaren <code>429 Too Many Requests</code>. Burada önemli olan şu: bu 429'ları <strong>Kong üretti</strong>, httpbin bu iki isteği hiç görmedi.</p>
 
@@ -199,7 +211,10 @@ curl -X POST localhost:8001/consumers/emre/key-auth --data key=gizli-anahtar-123
 curl -i -H 'apikey: gizli-anahtar-123' localhost:8000/secure/get
 # HTTP/1.1 200 OK</pre>
 
-<p>[GÖRSEL 05] images/05-key-auth.png — key-auth: anahtarsız 401, anahtarlı 200</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/05-key-auth.png" alt="key-auth: anahtarsız 401, anahtarlı 200">
+<figcaption>key-auth: anahtarsız 401, anahtarlı 200</figcaption>
+</figure>
 
 <p><strong>Önemli nokta:</strong> httpbin'in kodunda tek satır kimlik doğrulama yok. Anahtar kontrolü tamamen kapıda yapıldı ve backend sadece geçen isteği gördü. Gateway'in asıl değeri bu: güvenlik kodu, korumak istediğiniz servisin içinde yaşamıyor.</p>
 
@@ -275,7 +290,10 @@ builder.Services.AddHttpClient("products", client =&gt;
 
 <p><code>expose</code>, portu yalnızca Docker iç ağına açar; <code>ports</code> ise host'a yayınlar. Yani kendi makinenizden <code>localhost:8080/internal/stats</code> diye bu servise ulaşamazsınız — <strong>dışarıya tek kapı Kong (8000)</strong>. Gerçek hayatta mikroservisler de böyle durur: sadece iç ağda.</p>
 
-<p>[GÖRSEL 06] images/06-host-erisim-yok.png — Host'tan doğrudan erişim yok: connection refused</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/06-host-erisim-yok.png" alt="Host'tan doğrudan erişim yok: connection refused">
+<figcaption>Host'tan doğrudan erişim yok: connection refused</figcaption>
+</figure>
 
 <p>Servisleri iç ağdan görmek isterseniz aynı ağa geçici bir container atmanız gerekir:</p>
 
@@ -284,7 +302,10 @@ builder.Services.AddHttpClient("products", client =&gt;
 
 <pre>{"totalProducts":4,"outOfStock":1,"inventoryValue":108568.50,"secret":"bu-veri-disariya-cikmamali"}</pre>
 
-<p>[GÖRSEL 07] images/07-ic-agdan-stats.png — Aynı veri iç ağdan görünüyor</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/07-ic-agdan-stats.png" alt="Aynı veri iç ağdan görünüyor">
+<figcaption>Aynı veri iç ağdan görünüyor</figcaption>
+</figure>
 
 <p>Veri orada, çalışıyor. Şimdi bunun dışarıya <strong>çıkmadığını</strong> garanti etmemiz gerekiyor.</p>
 
@@ -304,7 +325,10 @@ curl -X POST localhost:8001/services/products-service/routes \
   --data 'methods[]=GET' \
   --data strip_path=true</pre>
 
-<p>[GÖRSEL 08] images/08-route-olustur.png — Service + Route oluşturulurken Admin API yanıtı</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/08-route-olustur.png" alt="Service + Route oluşturulurken Admin API yanıtı">
+<figcaption>Service + Route oluşturulurken Admin API yanıtı</figcaption>
+</figure>
 
 <p><strong>Kritik detay:</strong> <code>paths</code> değerinin başındaki <code>~</code> bunun bir regex olduğunu, sonundaki <code>$</code> ise tam eşleşme gerektiğini söyler.</p>
 
@@ -322,7 +346,10 @@ GET  /api/internal/stats  -> 404
 GET  /api/orders          -> 404
 POST /api/products        -> 404  (method eşleşmedi)</pre>
 
-<p>[GÖRSEL 09] images/09-dogrulanmis-404.png — Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/09-dogrulanmis-404.png" alt="Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi">
+<figcaption>Beş isteğin sonucu: 1 geçti, 4 kapıda çevrildi</figcaption>
+</figure>
 
 <p>Bu 404'lerin önemi şu: istek .NET servisine <strong>hiç ulaşmıyor</strong>. Servis bu isteklerden haberdar bile değil, Kong kapıda çevirdi.</p>
 
@@ -382,7 +409,10 @@ for raw in sys.stdin:
 404  GET   /api/internal/stats -> CEVRILDI  eslesen route yok, hicbir servise gitmedi
 404  POST  /api/products       -> CEVRILDI  eslesen route yok, hicbir servise gitmedi</pre>
 
-<p>[GÖRSEL 10] images/10-izle-akis.png — izle.sh canlı karar akışı</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/10-izle-akis.png" alt="izle.sh canlı karar akışı">
+<figcaption>izle.sh canlı karar akışı</figcaption>
+</figure>
 
 <h3>Yöntem 2: İki tarafın loglarını saymak</h3>
 
@@ -395,7 +425,10 @@ for raw in sys.stdin:
 <pre>docker compose logs kong --tail 200 | grep -cE '"(GET|POST) /api'   # -> 5
 docker compose logs products-api | grep -c 'Request starting'       # -> 1</pre>
 
-<p>[GÖRSEL 11] images/11-log-karsilastirma.png — Kong 5 istek gördü, products-api 1</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/11-log-karsilastirma.png" alt="Kong 5 istek gördü, products-api 1">
+<figcaption>Kong 5 istek gördü, products-api 1</figcaption>
+</figure>
 
 <p>Kong beş istek gördü, .NET servisi bir. Aradaki dört istek servise hiç varmadı — ASP.NET Core'un <code>Request starting</code> satırı bile oluşmadı. Bu, “servis isteği gördü ama 404 döndü” senaryosunu tamamen eler.</p>
 
@@ -413,7 +446,10 @@ curl -i localhost:8000/api/internal/stats  # engelli</pre>
 <li><code>X-Kong-Upstream-Latency</code> — izinli: var · engellenen: <strong>yok</strong></li>
 </ul>
 
-<p>[GÖRSEL 12] images/12-server-header.png — Server header'ı: Kestrel mi, kong mu cevapladı?</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/12-server-header.png" alt="Server header'ı: Kestrel mi, kong mu cevapladı?">
+<figcaption>Server header'ı: Kestrel mi, kong mu cevapladı?</figcaption>
+</figure>
 
 <p><code>Server: Kestrel</code> görüyorsanız istek arkaya gitti. <code>Server: kong/...</code> görüyorsanız kapıda çevrildi. <code>X-Kong-Upstream-Latency</code> header'ının yokluğu da aynı şeyi söylüyor: ölçülecek upstream süresi olmamış.</p>
 
@@ -433,7 +469,10 @@ curl -i localhost:8000/api/internal/stats  # engelli</pre>
 <li><strong>Veritabanı</strong> — DBeaver (localhost:5433) → <code>routes</code> tablosu (sadece OKU)</li>
 </ul>
 
-<p>[GÖRSEL 13] images/13-kong-manager-route.png — Kong Manager route ekranı</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/13-kong-manager-route.png" alt="Kong Manager route ekranı">
+<figcaption>Kong Manager route ekranı</figcaption>
+</figure>
 
 <p>Açık endpoint'i belirleyen sadece iki alan:</p>
 
@@ -492,7 +531,10 @@ curl -X PATCH localhost:8001/routes/public-products \
 from routes r
 join services s on r.service_id = s.id;</pre>
 
-<p>[GÖRSEL 14] images/14-dbeaver-routes.png — DBeaver'da routes tablosu</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/14-dbeaver-routes.png" alt="DBeaver'da routes tablosu">
+<figcaption>DBeaver'da routes tablosu</figcaption>
+</figure>
 
 <p><code>keyauth_credentials</code> tablosundaki satıra bakmanızı özellikle öneririm: <code>gizli-anahtar-123</code> orada <strong>düz metin</strong> olarak duruyor. API anahtarları Kong'da hash'lenmez, çünkü gelen isteği karşılaştırabilmek için anahtarın kendisine ihtiyaç var. Bu, DB erişiminin kendisinin de bir sır olduğu anlamına gelir.</p>
 
@@ -528,7 +570,10 @@ $D gateway diff --kong-addr http://kong:8001 kong.yaml
 # Dosyayı uygula (Kong'u dosyadaki hale getirir)
 $D gateway sync --kong-addr http://kong:8001 kong.yaml</pre>
 
-<p>[GÖRSEL 15] images/15-deck-diff.png — deck gateway diff: uygulamadan önce farkı görmek</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/15-deck-diff.png" alt="deck gateway diff: uygulamadan önce farkı görmek">
+<figcaption>deck gateway diff: uygulamadan önce farkı görmek</figcaption>
+</figure>
 
 <p>Çıkan <code>kong.yaml</code> artık okunabilir, versiyonlanabilir bir dosya:</p>
 
@@ -585,7 +630,10 @@ curl -X POST localhost:8001/routes/public-products/plugins \
 
 <pre>curl -X POST localhost:8001/plugins --data name=prometheus</pre>
 
-<p>[GÖRSEL 16] images/16-prometheus-metrics.png — Prometheus plugin'i: route bazında metrikler</p>
+<figure>
+<img src="https://raw.githubusercontent.com/emreozgoz/kong-makale/main/images/16-prometheus-metrics.png" alt="Prometheus plugin'i: route bazında metrikler">
+<figcaption>Prometheus plugin'i: route bazında metrikler</figcaption>
+</figure>
 
 <p>Artık <code>localhost:8001/metrics</code> adresinde route bazında istek sayıları, status kodu dağılımı ve gecikme histogramları var — her servise ayrı ayrı metrik kodu yazmadan.</p>
 

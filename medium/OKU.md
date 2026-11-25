@@ -17,8 +17,11 @@ blokları olduğu gibi gelir.
   düzenin aynısı.
 - **Kod blokları:** Her biri tek bir code block olarak gelir. Medium'da syntax
   highlight istersen bloğun sol üstündeki üç noktadan dil seçebilirsin.
-- **Görseller:** Metinde 16 adet `[GÖRSEL NN] images/...` satırı var. Her birinin
-  yerine görseli sürükle-bırak, sonra o satırı sil.
+- **Görseller:** 16 görsel dosyada hazır, kaynakları GitHub raw adresleri
+  (`raw.githubusercontent.com/emreozgoz/kong-makale/main/images/...`). Yapıştırdığında
+  Medium bunları kendisi indirip story'ye yükler — elle eklemen gerekmez. Alt yazılar
+  da `figcaption` olarak geliyor.
+  Not: Bu yüzden repo public kalmalı; private yaparsan Medium görselleri çekemez.
 - **Tablolar:** Medium tablo desteklemiyor. Bu dosyada tablolar madde listesine
   çevrildi, yani yapıştırınca hiçbir şey kaybolmuyor. Tablo görünümünü istersen
   `docs/index.html`'deki tabloların ekran görüntüsünü alıp görsel olarak ekle
